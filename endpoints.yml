@@ -1,0 +1,198 @@
+Complete API Endpoints List
+
+🔐 Authentication Routes
+Login & Logout
+GET /login - Login page with Google OAuth and basic auth options
+POST /login - Handle basic authentication (email/password)
+GET /logout - Logout user and destroy session
+
+
+Google OAuth
+GET /auth/google - Initiate Google OAuth flow
+GET /auth/google/callback - Handle Google OAuth callback
+POST /auth/google/disconnect - Disconnect Google integration
+
+
+
+
+
+QuickBooks OAuth
+GET /auth/quickbooks - Initiate QuickBooks OAuth (requires existing auth)
+GET /auth/quickbooks/standalone - Initiate standalone QuickBooks OAuth
+GET /auth/quickbooks/callback - Handle QuickBooks OAuth callback
+POST /auth/quickbooks/disconnect - Disconnect QuickBooks integration
+GET /auth/quickbooks/disconnect - QuickBooks disconnect confirmation page
+
+🏠 Main Application Routes
+Core Pages
+GET / - Portal home page (requires auth)
+GET /dashboard - User dashboard (requires auth)
+GET /auth-result - Authentication result page for standalone flows
+GET /admin - Admin panel with customer management
+
+
+Utility Pages
+GET /health - Health check endpoint
+GET /debug - Debug information (protocols, hosts, etc.)
+GET /debug-auth - Authentication debug information
+GET /terms - Terms of Service page
+GET /privacy - Privacy Policy page
+
+
+📊 Customer API Routes
+Basic Customer Operations
+GET /api/customer/:id - Get customer info with Google tokens
+GET /api/customers - List all customers
+GET /api/customers/latest - Get most recently created customer
+GET /api/customers/count - Get total customer count
+GET /api/customers/search?email= - Search customers by email
+
+
+
+
+
+
+POST /api/customer/:id/refresh-tokens - Refresh Google tokens
+DELETE /admin/customer/:id - Delete customer (admin only)
+
+
+GET /api/customer/{customer_id}
+GET /api/customer/{customer_id}/integrations
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// =============================================================================
+// GOOGLE ROUTES
+// =============================================================================
+
+
+
+
+
+
+
+
+
+GET /api/customer/:id/google/tokens
+GET /api/customer/:id/google/status
+GET /api/customer/:id/google/refresh
+GET /api/customer/:id/google/status/live
+// =============================================================================
+// GOOGLE ROUTES
+// =============================================================================
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// =============================================================================
+// QUICKBOOKS ROUTEs
+// =============================================================================
+
+GET /api/customer/:id/quickbooks - Get QuickBooks connection info
+GET /api/customer/:id/quickbooks/status - Get QuickBooks connection status
+GET /api/customer/:id/quickbooks/refresh
+GET /api/customer/:id/quickbooks/tokens - Get QuickBooks access tokens
+
+// =============================================================================
+// QUICKBOOKS ROUTEs
+// =============================================================================
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// =============================================================================
+// GENERAL STATUS ROUTES
+// =============================================================================
+
+
+GET /api/customer/:id/integrations - Get all integrations status
+GET /api/customer/:id/integration/:service/status - Get specific integration status
+// =============================================================================
+// GENERAL STATUS ROUTES
+// =============================================================================
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// =============================================================================
+// FACEBOOK INTEGRATION ROUTES
+// =============================================================================
+
+
+GET /auth/facebook - Initiate Facebook OAuth flow
+GET /auth/facebook/callback - Handle Facebook OAuth callback
+GET /auth/facebook/disconnect
+GET /api/customer/:id/facebook/status
+
+// =============================================================================
+// FACEBOOK INTEGRATION ROUTES
+// =============================================================================
