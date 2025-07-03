@@ -154,14 +154,6 @@ db.serialize(() => {
     }
   );
 
-  // Optional: Create a mapping table for Telegram chat IDs to customer IDs
-  db.run(`CREATE TABLE IF NOT EXISTS telegram_mappings (
-    chat_id TEXT PRIMARY KEY,
-    customer_id TEXT NOT NULL,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (customer_id) REFERENCES customers (id)
-  )`);
-
   console.log("✅ Database schema updated for Google Picker integration");
 });
 
