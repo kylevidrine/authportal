@@ -1,0 +1,26 @@
+version: '3.8'
+
+services:
+  customer-portal:
+    build: .
+    container_name: robosouthla-customer-portal
+    ports:
+      - "3000:3000"
+    environment:
+      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
+      - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
+      - QB_ENVIRONMENT=${QB_ENVIRONMENT}
+      - QB_CLIENT_ID_PROD=${QB_CLIENT_ID_PROD}
+      - QB_CLIENT_SECRET_PROD=${QB_CLIENT_SECRET_PROD}
+      - QB_CLIENT_ID_SANDBOX=${QB_CLIENT_ID_SANDBOX}
+      - QB_CLIENT_SECRET_SANDBOX=${QB_CLIENT_SECRET_SANDBOX}
+      - SESSION_SECRET=${SESSION_SECRET}
+      - PORT=3000
+      - DATABASE_PATH=/app/data/customers.db
+    volumes:
+      - ./data:/app/data
+    restart: unless-stopped
+
+    
+
+    

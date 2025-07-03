@@ -1,0 +1,785 @@
+<html>
+  <head>
+    <title>Admin - Customer Management</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        padding: 20px;
+        background: #f5f5f5;
+      }
+      .container {
+        max-width: 1400px;
+        margin: 0 auto;
+        background: white;
+        padding: 30px;
+        border-radius: 10px;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        background: white;
+        margin: 20px 0;
+      }
+      th,
+      td {
+        padding: 8px;
+        text-align: left;
+        border: 1px solid #ddd;
+        font-size: 13px;
+      }
+      th {
+        background-color: #f9fafb;
+        font-weight: 600;
+      }
+      .btn {
+        background: #3b82f6;
+        color: white;
+        padding: 12px 24px;
+        text-decoration: none;
+        border-radius: 8px;
+      }
+      .info-box {
+        background: #f0f9ff;
+        padding: 20px;
+        border-radius: 8px;
+        margin: 20px 0;
+      }
+      .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 15px;
+        margin: 20px 0;
+      }
+      .stat-card {
+        background: #f8f9fa;
+        padding: 15px;
+        border-radius: 8px;
+        text-align: center;
+        border-left: 4px solid #007bff;
+      }
+      .stat-number {
+        font-size: 24px;
+        font-weight: bold;
+        color: #333;
+      }
+      .stat-label {
+        font-size: 12px;
+        color: #666;
+        text-transform: uppercase;
+        margin-top: 5px;
+      }
+
+      /* Real-time countdown styles */
+      .countdown-timer {
+        font-weight: bold;
+        font-family: monospace;
+      }
+
+      .countdown-expired {
+        color: #d32f2f !important;
+        background: #ffeaea !important;
+      }
+
+      .countdown-warning {
+        color: #ea8600 !important;
+        background: #fef7e0 !important;
+      }
+
+      .countdown-good {
+        color: #2d5a2d !important;
+        background: #e8f5e8 !important;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>👥 Customer Management Dashboard</h1>
+
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-number" id="totalCustomers">Loading...</div>
+          <div class="stat-label">Total Customers</div>
+        </div>
+        <div class="stat-card" style="border-left-color: #28a745">
+          <div class="stat-number" id="connectedCustomers">Loading...</div>
+          <div class="stat-label">Fully Connected</div>
+        </div>
+        <div class="stat-card" style="border-left-color: #4285f4">
+          <div class="stat-number" id="googleOnlyCustomers">Loading...</div>
+          <div class="stat-label">Google Only</div>
+        </div>
+        <div class="stat-card" style="border-left-color: #0077c5">
+          <div class="stat-number" id="qbOnlyCustomers">Loading...</div>
+          <div class="stat-label">QuickBooks Only</div>
+        </div>
+      </div>
+
+      <div class="info-box">
+        <h3>🔗 Integration Status Overview</h3>
+        <p>
+          <strong>Fully Connected:</strong> Customers with both Google and
+          QuickBooks authorization
+        </p>
+        <p><strong>Available Integrations:</strong></p>
+        <ul style="text-align: left">
+          <li>
+            <strong>Google Workspace:</strong> Sheets, Gmail, Calendar,
+            Contacts, Drive
+          </li>
+          <li>
+            <strong>QuickBooks:</strong> Accounting data access (Environment:
+            <span id="qbEnvironment">Loading...</span>)
+          </li>
+        </ul>
+      </div>
+
+      <table>
+        <thead>
+          <tr>
+            <th>Customer ID</th>
+            <th>Email</th>
+            <th>Name</th>
+            <th>Google Status</th>
+            <th>QuickBooks Status</th>
+            <th>Registered</th>
+            <th>API Integration</th>
+          </tr>
+        </thead>
+        <tbody id="customerTableBody">
+          <tr>
+            <td colspan="7" style="text-align: center">Loading customers...</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div class="info-box">
+        <h3>🔧 N8N Integration Guide</h3>
+        <ol>
+          <li><strong>Copy Customer ID</strong> from the table above</li>
+          <li>
+            <strong>Google API:</strong> Use
+            <code>GET /api/customer/{id}</code> for Google tokens
+          </li>
+          <li>
+            <strong>QuickBooks API:</strong> Use
+            <code>GET /api/customer/{id}/quickbooks/tokens</code> for QB tokens
+          </li>
+          <li>
+            <strong>Status Check:</strong> Use
+            <code>GET /api/customer/{id}/quickbooks</code> to verify QB
+            connection
+          </li>
+        </ol>
+
+        <h4>Environment Variables Needed:</h4>
+        <ul
+          style="
+            font-family: monospace;
+            font-size: 13px;
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 6px;
+          "
+        >
+          <li>QB_CLIENT_ID_PROD=your_production_app_id</li>
+          <li>QB_CLIENT_SECRET_PROD=your_production_app_secret</li>
+          <li>QB_CLIENT_ID_SANDBOX=your_sandbox_app_id</li>
+          <li>QB_CLIENT_SECRET_SANDBOX=your_sandbox_app_secret</li>
+          <li>QB_ENVIRONMENT=production (or sandbox for testing)</li>
+        </ul>
+      </div>
+
+      <!-- Enhanced Navigation Section -->
+      <div
+        style="
+          margin-top: 30px;
+          padding-top: 20px;
+          border-top: 1px solid #dee2e6;
+        "
+      >
+        <div
+          style="
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 15px;
+          "
+        >
+          <!-- Left side - Main navigation -->
+          <div
+            style="
+              display: flex;
+              flex-wrap: wrap;
+              gap: 15px;
+              align-items: center;
+            "
+          >
+            <a href="/" class="btn" style="background: #6c757d"
+              >← Portal Home</a
+            >
+            <a href="/dashboard" class="btn" style="background: #6c757d"
+              >Dashboard</a
+            >
+
+            <!-- Admin Tools -->
+            <div style="display: flex; flex-wrap: wrap; gap: 10px">
+              <a
+                href="/debug-auth"
+                style="
+                  background: #6c757d;
+                  color: white;
+                  padding: 8px 16px;
+                  border-radius: 4px;
+                  text-decoration: none;
+                  font-size: 12px;
+                  font-weight: 500;
+                "
+              >
+                🔍 Auth Debug
+              </a>
+              <a
+                href="/health"
+                style="
+                  background: #28a745;
+                  color: white;
+                  padding: 8px 16px;
+                  border-radius: 4px;
+                  text-decoration: none;
+                  font-size: 12px;
+                  font-weight: 500;
+                "
+              >
+                ⚡ Health Check
+              </a>
+              <a
+                href="/debug"
+                style="
+                  background: #ffc107;
+                  color: #212529;
+                  padding: 8px 16px;
+                  border-radius: 4px;
+                  text-decoration: none;
+                  font-size: 12px;
+                  font-weight: 500;
+                "
+              >
+                🛠️ System Debug
+              </a>
+            </div>
+          </div>
+
+          <!-- Right side - Logout -->
+          <div>
+            <a
+              href="/logout"
+              class="btn"
+              style="
+                background: #dc3545;
+                color: white;
+                font-size: 16px;
+                padding: 14px 28px;
+                font-weight: 600;
+              "
+              onclick="return confirm('Are you sure you want to logout?')"
+            >
+              🚪 Sign Out
+            </a>
+          </div>
+        </div>
+
+        <!-- Admin-specific quick actions -->
+        <div
+          style="
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 1px solid #f0f0f0;
+          "
+        >
+          <div
+            style="
+              display: flex;
+              flex-wrap: wrap;
+              gap: 10px;
+              align-items: center;
+            "
+          >
+            <span style="font-size: 12px; color: #666; font-weight: 600"
+              >Quick Actions:</span
+            >
+            <button
+              onclick="location.reload()"
+              style="
+                background: #17a2b8;
+                color: white;
+                padding: 6px 12px;
+                border: none;
+                border-radius: 4px;
+                cursor: pointer;
+                font-size: 11px;
+              "
+            >
+              🔄 Refresh Data
+            </button>
+            <button
+              onclick="window.open('/api/customers', '_blank')"
+              style="
+                background: #6f42c1;
+                color: white;
+                padding: 6px 12px;
+                border: none;
+                border-radius: 4px;
+                cursor: pointer;
+                font-size: 11px;
+              "
+            >
+              📊 API Data
+            </button>
+            <button
+              onclick="exportCustomerData()"
+              style="
+                background: #fd7e14;
+                color: white;
+                padding: 6px 12px;
+                border: none;
+                border-radius: 4px;
+                cursor: pointer;
+                font-size: 11px;
+              "
+            >
+              📥 Export CSV
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      // Global variables for real-time functionality
+      let customerTimers = {};
+      let refreshInterval;
+
+      function copyToClipboard(text) {
+        if (text === "N/A") {
+          alert("No token available");
+          return;
+        }
+        navigator.clipboard
+          .writeText(text)
+          .then(() => {
+            alert("Copied to clipboard!");
+          })
+          .catch((err) => {
+            const textArea = document.createElement("textarea");
+            textArea.value = text;
+            document.body.appendChild(textArea);
+            textArea.select();
+            document.execCommand("copy");
+            document.body.removeChild(textArea);
+            alert("Copied to clipboard!");
+          });
+      }
+
+      async function deleteCustomer(customerId, customerEmail) {
+        if (
+          !confirm(
+            `Are you sure you want to delete customer: ${customerEmail}?\n\nCustomer ID: ${customerId}\n\nThis action cannot be undone.`
+          )
+        ) {
+          return;
+        }
+
+        try {
+          const response = await fetch(`/admin/customer/${customerId}`, {
+            method: "DELETE",
+            headers: {
+              "Content-Type": "application/json",
+            },
+          });
+
+          const result = await response.json();
+
+          if (response.ok) {
+            alert(`Customer ${result.customerEmail} deleted successfully!`);
+            location.reload();
+          } else {
+            alert("Failed to delete customer: " + result.error);
+          }
+        } catch (error) {
+          alert("Error deleting customer: " + error.message);
+        }
+      }
+
+      function exportCustomerData() {
+        // Simple CSV export functionality
+        const rows = Array.from(document.querySelectorAll("tbody tr"));
+        const csvContent =
+          "data:text/csv;charset=utf-8," +
+          "Customer ID,Email,Name,Google Status,QuickBooks Status,Registered\n" +
+          rows
+            .map((row) => {
+              const cells = Array.from(row.querySelectorAll("td"));
+              return [
+                cells[0]?.textContent?.trim() || "",
+                cells[1]?.textContent?.trim() || "",
+                cells[2]?.textContent?.trim() || "",
+                cells[3]?.textContent?.trim() || "",
+                cells[4]?.textContent?.trim() || "",
+                cells[5]?.textContent?.trim() || "",
+              ]
+                .map((field) => `"${field.replace(/"/g, '""')}"`)
+                .join(",");
+            })
+            .join("\n");
+
+        const encodedUri = encodeURI(csvContent);
+        const link = document.createElement("a");
+        link.setAttribute("href", encodedUri);
+        link.setAttribute(
+          "download",
+          `customers_${new Date().toISOString().split("T")[0]}.csv`
+        );
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      }
+
+      // Real-time countdown functionality
+      function extractSecondsFromStatus(status) {
+        const match = status.match(/Valid \((\d+)s\)/);
+        return match ? parseInt(match[1]) : null;
+      }
+
+      function formatTime(seconds) {
+        if (seconds <= 0) return "Expired";
+
+        const hours = Math.floor(seconds / 3600);
+        const minutes = Math.floor((seconds % 3600) / 60);
+        const secs = seconds % 60;
+
+        if (hours > 0) {
+          return `${hours}h ${minutes}m ${secs}s`;
+        } else if (minutes > 0) {
+          return `${minutes}m ${secs}s`;
+        } else {
+          return `${secs}s`;
+        }
+      }
+
+      function getCountdownClass(seconds) {
+        if (seconds <= 0) return "countdown-expired";
+        if (seconds < 300) return "countdown-warning"; // Less than 5 minutes
+        return "countdown-good";
+      }
+
+      function startCountdown(customerId, initialSeconds) {
+        // Clear existing timer if any
+        if (customerTimers[customerId]) {
+          clearInterval(customerTimers[customerId]);
+        }
+
+        let remainingSeconds = initialSeconds;
+
+        customerTimers[customerId] = setInterval(() => {
+          remainingSeconds--;
+
+          const statusElement = document.querySelector(
+            `[data-customer-id="${customerId}"] .google-status`
+          );
+          if (statusElement) {
+            const timeDisplay = formatTime(remainingSeconds);
+            const countdownClass = getCountdownClass(remainingSeconds);
+
+            if (remainingSeconds <= 0) {
+              statusElement.innerHTML = `<span class="countdown-expired">Expired</span>`;
+              clearInterval(customerTimers[customerId]);
+            } else {
+              statusElement.innerHTML = `<span class="countdown-timer ${countdownClass}">Valid (${timeDisplay})</span>`;
+            }
+          }
+        }, 1000);
+      }
+
+      // Load admin data when page loads
+      async function loadAdminData() {
+        try {
+          // Fetch customer data from your existing API
+          const response = await fetch("/api/customers");
+          const customers = await response.json();
+
+          // Calculate statistics
+          const totalCustomers = customers.length;
+          const connectedCustomers = customers.filter(
+            (c) => c.hasGoogleAuth && c.hasQuickBooksAuth
+          ).length;
+          const googleOnlyCustomers = customers.filter(
+            (c) => c.hasGoogleAuth && !c.hasQuickBooksAuth
+          ).length;
+          const qbOnlyCustomers = customers.filter(
+            (c) => !c.hasGoogleAuth && c.hasQuickBooksAuth
+          ).length;
+
+          // Update the stats
+          document.getElementById("totalCustomers").textContent =
+            totalCustomers;
+          document.getElementById("connectedCustomers").textContent =
+            connectedCustomers;
+          document.getElementById("googleOnlyCustomers").textContent =
+            googleOnlyCustomers;
+          document.getElementById("qbOnlyCustomers").textContent =
+            qbOnlyCustomers;
+          document.getElementById("qbEnvironment").textContent = "production";
+
+          // Build customer table
+          const tableBody = document.getElementById("customerTableBody");
+          if (customers.length === 0) {
+            tableBody.innerHTML =
+              '<tr><td colspan="7" style="text-align: center;">No customers found</td></tr>';
+            return;
+          }
+
+          // Create table rows with live status checking and countdown timers
+          const customerRows = await Promise.all(
+            customers.map(async (customer) => {
+              // Check live Google status
+              let googleStatus = "Unknown";
+              let googleSeconds = null;
+
+              if (customer.hasGoogleAuth) {
+                try {
+                  const googleResponse = await fetch(
+                    `/api/customer/${customer.id}/google/status/live`
+                  );
+                  if (googleResponse.ok) {
+                    const googleData = await googleResponse.json();
+                    googleStatus = googleData.status || "Connected";
+                    googleSeconds = extractSecondsFromStatus(googleStatus);
+                  } else {
+                    googleStatus = "Invalid/Expired";
+                  }
+                } catch (error) {
+                  googleStatus = "Error checking";
+                }
+              } else {
+                googleStatus = "Not Connected";
+              }
+
+              // Check QuickBooks status
+              let qbStatus = "Not Connected";
+              if (customer.hasQuickBooksAuth) {
+                try {
+                  const qbResponse = await fetch(
+                    `/api/customer/${customer.id}/quickbooks/status`
+                  );
+                  if (qbResponse.ok) {
+                    const qbData = await qbResponse.json();
+                    qbStatus = qbData.connected
+                      ? "Connected"
+                      : "Invalid/Expired";
+                  } else {
+                    qbStatus = "Invalid/Expired";
+                  }
+                } catch (error) {
+                  qbStatus = "Error checking";
+                }
+              }
+
+              const createdDate = new Date(
+                customer.createdAt
+              ).toLocaleDateString();
+
+              // Start countdown timer if we have valid seconds
+              if (googleSeconds !== null && googleSeconds > 0) {
+                setTimeout(
+                  () => startCountdown(customer.id, googleSeconds),
+                  100
+                );
+              }
+
+              return `
+        <tr data-customer-id="${customer.id}">
+          <td><code style="font-size:12px;">${customer.id}</code></td>
+          <td>${customer.email}</td>
+          <td>${customer.name || "N/A"}</td>
+          <td class="google-status">
+            <span style="padding:2px 8px;border-radius:12px;font-size:11px;background:${
+              googleStatus.includes("Valid")
+                ? "#e8f5e8;color:#2d5a2d"
+                : "#ffeaea;color:#d32f2f"
+            }">${googleStatus}</span>
+          </td>
+          <td>
+            <span style="padding:2px 8px;border-radius:12px;font-size:11px;background:${
+              qbStatus === "Connected"
+                ? "#e8f5e8;color:#2d5a2d"
+                : qbStatus === "Not Connected"
+                ? "#f0f0f0;color:#666"
+                : "#ffeaea;color:#d32f2f"
+            }">${qbStatus}</span>
+          </td>
+          <td>${createdDate}</td>
+          <td>
+            <button onclick="copyToClipboard('${customer.id}')" 
+                    style="padding:5px 10px;background:#7c3aed;color:white;border:none;border-radius:4px;cursor:pointer;margin:2px;font-size:11px;">
+              Copy Customer ID
+            </button><br>
+            ${
+              customer.hasGoogleAuth
+                ? `
+            <button onclick="testGoogleToken('${customer.id}', '${customer.email}')" 
+                    style="padding:5px 10px;background:#34a853;color:white;border:none;border-radius:4px;cursor:pointer;margin:2px;font-size:11px;">
+              🔍 Test Google Token
+            </button><br>`
+                : ""
+            }
+            ${
+              customer.hasQuickBooksAuth
+                ? `
+            <button onclick="testQBToken('${customer.id}', '${customer.email}')" 
+                    style="padding:5px 10px;background:#0077C5;color:white;border:none;border-radius:4px;cursor:pointer;margin:2px;font-size:11px;">
+              🔍 Test QB Token
+            </button><br>`
+                : ""
+            }
+            <button onclick="deleteCustomer('${customer.id}', '${
+                customer.email
+              }')" 
+                    style="padding:5px 10px;background:#dc3545;color:white;border:none;border-radius:4px;cursor:pointer;margin:2px;font-size:11px;">
+              Delete Customer
+            </button>
+          </td>
+        </tr>
+      `;
+            })
+          );
+
+          tableBody.innerHTML = customerRows.join("");
+        } catch (error) {
+          console.error("Error loading admin data:", error);
+          document.getElementById("totalCustomers").textContent = "Error";
+          document.getElementById("connectedCustomers").textContent = "Error";
+          document.getElementById("googleOnlyCustomers").textContent = "Error";
+          document.getElementById("qbOnlyCustomers").textContent = "Error";
+          document.getElementById("customerTableBody").innerHTML =
+            '<tr><td colspan="7" style="text-align: center; color: red;">Error loading customer data</td></tr>';
+        }
+      }
+
+      // Auto-refresh functionality
+      function startAutoRefresh() {
+        // Refresh data every 2 minutes
+        refreshInterval = setInterval(() => {
+          console.log("🔄 Auto-refreshing admin data...");
+          loadAdminData();
+        }, 120000);
+      }
+
+      // Cleanup function
+      function cleanup() {
+        // Clear all customer timers
+        Object.values(customerTimers).forEach((timer) => clearInterval(timer));
+        customerTimers = {};
+
+        // Clear refresh interval
+        if (refreshInterval) {
+          clearInterval(refreshInterval);
+        }
+      }
+
+      // Load data when page loads
+      window.addEventListener("load", () => {
+        loadAdminData();
+        startAutoRefresh();
+      });
+
+      // Cleanup when page unloads
+      window.addEventListener("beforeunload", cleanup);
+
+      // Token testing functions
+      async function testGoogleToken(customerId, customerEmail) {
+        try {
+          const button = event.target;
+          const originalText = button.innerHTML;
+          button.disabled = true;
+          button.innerHTML = "⏳ Testing...";
+
+          const response = await fetch(
+            `/api/customer/${customerId}/google/status/live`
+          );
+          const data = await response.json();
+
+          let message = `Google Token Test for: ${customerEmail}\n\n`;
+
+          if (response.ok) {
+            message += `✅ Status: ${data.status}\n`;
+            if (data.expires_in) {
+              const hours = Math.floor(data.expires_in / 3600);
+              const minutes = Math.floor((data.expires_in % 3600) / 60);
+              message += `⏰ Expires in: ${hours}h ${minutes}m\n`;
+            }
+            if (data.email) {
+              message += `📧 Token Email: ${data.email}\n`;
+            }
+            if (data.scopes) {
+              message += `🔑 Scopes: ${data.scopes}\n`;
+            }
+            message += `\n🌐 API Endpoint: /api/customer/${customerId}/google/status/live`;
+          } else {
+            message += `❌ Error: ${data.error || "Token validation failed"}\n`;
+            message += `📝 Details: ${data.message || "No additional details"}`;
+          }
+
+          alert(message);
+        } catch (error) {
+          alert(`Error testing Google token: ${error.message}`);
+        } finally {
+          const button = event.target;
+          button.disabled = false;
+          button.innerHTML = originalText;
+        }
+      }
+
+      async function testQBToken(customerId, customerEmail) {
+        try {
+          const button = event.target;
+          const originalText = button.innerHTML;
+          button.disabled = true;
+          button.innerHTML = "⏳ Testing...";
+
+          const response = await fetch(
+            `/api/customer/${customerId}/quickbooks/status`
+          );
+          const data = await response.json();
+
+          let message = `QuickBooks Token Test for: ${customerEmail}\n\n`;
+
+          if (response.ok) {
+            message += `✅ Connected: ${data.connected ? "Yes" : "No"}\n`;
+            if (data.companyId) {
+              message += `🏢 Company ID: ${data.companyId}\n`;
+            }
+            if (data.environment) {
+              message += `🌍 Environment: ${data.environment}\n`;
+            }
+            if (data.tokenExpiry) {
+              const expiry = new Date(data.tokenExpiry);
+              message += `⏰ Token Expires: ${expiry.toLocaleString()}\n`;
+            }
+            message += `\n🌐 API Endpoint: /api/customer/${customerId}/quickbooks/status`;
+          } else {
+            message += `❌ Error: ${data.error || "Token validation failed"}\n`;
+            message += `📝 Details: ${data.message || "No additional details"}`;
+          }
+
+          alert(message);
+        } catch (error) {
+          alert(`Error testing QuickBooks token: ${error.message}`);
+        } finally {
+          const button = event.target;
+          button.disabled = false;
+          button.innerHTML = originalText;
+        }
+      }
+    </script>
+  </body>
+</html>
