@@ -1,3 +1,14 @@
 .env
 node_modules
 node_modules
+# Database files - never commit these!
+data/customers.db
+data/*.db
+*.db
+# Cookie and session files
+cookies.txt
+fresh_session.txt
+*.txt
+# Environment files
+.env
+.env.*
