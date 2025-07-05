@@ -1,71 +1,75 @@
 // routes/google.js
-const express = require('express');
+const express = require("express");
 const router = express.Router();
-const fetch = require('node-fetch');
+const fetch = require("node-fetch");
 
 module.exports = (dependencies) => {
- const { 
-   getAllCustomers,
-   getCustomerById,
-   storeCustomer,
-   updateCustomerGoogleTokens,
-   validateToken,
-   REQUIRED_SCOPES,
-   passport,
-   db
- } = dependencies;
+  const {
+    getAllCustomers,
+    getCustomerById,
+    storeCustomer,
+    updateCustomerGoogleTokens,
+    validateToken,
+    REQUIRED_SCOPES,
+    passport,
+    db,
+  } = dependencies;
 
- // =============================================================================
- // GOOGLE AUTHENTICATION ROUTES
- // =============================================================================
+  // =============================================================================
+  // GOOGLE AUTHENTICATION ROUTES
+  // =============================================================================
 
- // Start Google OAuth
- router.get('/auth/google',
-   passport.authenticate('google', {
-     scope: REQUIRED_SCOPES,
-     accessType: 'offline',
-     prompt: 'consent'
-   })
- );
+  // Start Google OAuth
+  router.get(
+    "/auth/google",
+    passport.authenticate("google", {
+      scope: REQUIRED_SCOPES,
+      accessType: "offline",
+      prompt: "consent",
+    })
+  );
 
- // Google OAuth callback
- router.get('/auth/google/callback',
-   passport.authenticate('google', { failureRedirect: '/login?google_error=1' }),
-   (req, res) => {
-     console.log('✅ Google OAuth callback successful for:', req.user?.email);
-     console.log('Customer ID:', req.user?.id);
+  // Google OAuth callback
+  router.get(
+    "/auth/google/callback",
+    passport.authenticate("google", {
+      failureRedirect: "/login?google_error=1",
+    }),
+    (req, res) => {
+      console.log("✅ Google OAuth callback successful for:", req.user?.email);
+      console.log("Customer ID:", req.user?.id);
 
-     req.session.authenticated = true;
-     req.session.userInfo = {
-       email: req.user.email,
-       name: req.user.name,
-       role: 'google_user',
-       customerId: req.user.id,
-       authType: 'google'
-     };
+      req.session.authenticated = true;
+      req.session.userInfo = {
+        email: req.user.email,
+        name: req.user.name,
+        role: "google_user",
+        customerId: req.user.id,
+        authType: "google",
+      };
 
-     req.session.save((err) => {
-       if (err) {
-         console.error('❌ Session save error:', err);
-         return res.redirect('/login?error=session_failed');
-       }
-       console.log('✅ Session saved successfully for Google user');
-       res.redirect('/dashboard');
-     });
-   }
- );
+      req.session.save((err) => {
+        if (err) {
+          console.error("❌ Session save error:", err);
+          return res.redirect("/login?error=session_failed");
+        }
+        console.log("✅ Session saved successfully for Google user");
+        res.redirect("/dashboard");
+      });
+    }
+  );
 
- // Disconnect Google
- router.post('/auth/google/disconnect', async (req, res) => {
-   try {
-     if (!req.isAuthenticated()) {
-       return res.status(401).json({ error: 'Not authenticated' });
-     }
+  // Disconnect Google
+  router.post("/auth/google/disconnect", async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ error: "Not authenticated" });
+      }
 
-     const customerId = req.user.id;
-     console.log('Disconnecting Google for user:', req.user.email);
+      const customerId = req.user.id;
+      console.log("Disconnecting Google for user:", req.user.email);
 
-     const stmt = db.prepare(`
+      const stmt = db.prepare(`
        UPDATE customers 
        SET google_access_token = NULL, 
            google_refresh_token = NULL, 
@@ -75,366 +79,384 @@ module.exports = (dependencies) => {
        WHERE id = ?
      `);
 
-     stmt.run([customerId], function (err) {
-       if (err) {
-         console.error('Error disconnecting Google:', err);
-         return res.status(500).json({ error: 'Failed to disconnect' });
-       }
+      stmt.run([customerId], function (err) {
+        if (err) {
+          console.error("Error disconnecting Google:", err);
+          return res.status(500).json({ error: "Failed to disconnect" });
+        }
 
-       console.log('Google disconnected successfully for:', req.user.email);
-       
-       req.user.google_access_token = null;
-       req.user.google_refresh_token = null;
-       req.user.scopes = null;
-       req.user.token_expiry = null;
-       
-       res.json({ success: true, message: 'Google disconnected successfully' });
-     });
+        console.log("Google disconnected successfully for:", req.user.email);
 
-     stmt.finalize();
+        req.user.google_access_token = null;
+        req.user.google_refresh_token = null;
+        req.user.scopes = null;
+        req.user.token_expiry = null;
 
-   } catch (error) {
-     console.error('Disconnect error:', error);
-     res.status(500).json({ error: 'Server error' });
-   }
- });
+        res.json({
+          success: true,
+          message: "Google disconnected successfully",
+        });
+      });
 
- // =============================================================================
- // GOOGLE API ROUTES
- // =============================================================================
+      stmt.finalize();
+    } catch (error) {
+      console.error("Disconnect error:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
 
- // Get customer Google data
- router.get('/api/customer/:id', async (req, res) => {
-   try {
-     console.log('API call for customer:', req.params.id);
-     const customer = await getCustomerById(req.params.id);
+  // =============================================================================
+  // GOOGLE API ROUTES
+  // =============================================================================
 
-     if (!customer) {
-       console.log('Customer not found:', req.params.id);
-       return res.status(404).json({
-         error: 'customer_not_found',
-         message: 'Customer not found. Please authenticate first.',
-         authUrl: `${process.env.BASE_URL}/auth/google`
-       });
-     }
+  // Get customer Google data
+  router.get("/api/customer/:id", async (req, res) => {
+    try {
+      console.log("API call for customer:", req.params.id);
+      const customer = await getCustomerById(req.params.id);
 
-     if (!customer.google_access_token) {
-       console.log('No Google token found for:', customer.email);
-       return res.status(403).json({
-         error: 'no_google_token',
-         message: 'No Google access token found. Please re-authenticate with Google.',
-         authUrl: `${process.env.BASE_URL}/auth/google`
-       });
-     }
+      if (!customer) {
+        console.log("Customer not found:", req.params.id);
+        return res.status(404).json({
+          error: "customer_not_found",
+          message: "Customer not found. Please authenticate first.",
+          authUrl: `${process.env.BASE_URL}/auth/google`,
+        });
+      }
 
-     console.log('Customer found, validating Google token for:', customer.email);
-     const tokenValidation = await validateToken(customer.google_access_token);
+      if (!customer.google_access_token) {
+        console.log("No Google token found for:", customer.email);
+        return res.status(403).json({
+          error: "no_google_token",
+          message:
+            "No Google access token found. Please re-authenticate with Google.",
+          authUrl: `${process.env.BASE_URL}/auth/google`,
+        });
+      }
 
-     if (!tokenValidation.valid) {
-       console.log('Google token validation failed for:', customer.email);
-       return res.status(403).json({
-         error: 'invalid_google_token',
-         message: 'Google access token is invalid or expired. Please re-authenticate with Google.',
-         authUrl: `${process.env.BASE_URL}/auth/google`
-       });
-     }
+      console.log(
+        "Customer found, validating Google token for:",
+        customer.email
+      );
+      const tokenValidation = await validateToken(customer.google_access_token);
 
-     res.json({
-       id: customer.id,
-       email: customer.email,
-       name: customer.name,
-       accessToken: customer.google_access_token,
-       refreshToken: customer.google_refresh_token,
-       scopes: tokenValidation.scopes,
-       expiresIn: tokenValidation.expires_in,
-       createdAt: customer.created_at,
-       hasGoogleAuth: true
-     });
+      if (!tokenValidation.valid) {
+        console.log("Google token validation failed for:", customer.email);
+        return res.status(403).json({
+          error: "invalid_google_token",
+          message:
+            "Google access token is invalid or expired. Please re-authenticate with Google.",
+          authUrl: `${process.env.BASE_URL}/auth/google`,
+        });
+      }
 
-   } catch (error) {
-     console.error('Google API error:', error);
-     res.status(500).json({
-       error: 'internal_error',
-       message: 'Internal server error'
-     });
-   }
- });
+      res.json({
+        id: customer.id,
+        email: customer.email,
+        name: customer.name,
+        accessToken: customer.google_access_token,
+        refreshToken: customer.google_refresh_token,
+        scopes: tokenValidation.scopes,
+        expiresIn: tokenValidation.expires_in,
+        createdAt: customer.created_at,
+        hasGoogleAuth: true,
+      });
+    } catch (error) {
+      console.error("Google API error:", error);
+      res.status(500).json({
+        error: "internal_error",
+        message: "Internal server error",
+      });
+    }
+  });
 
- // Get Google tokens
- router.get('/api/customer/:id/google/tokens', async (req, res) => {
-   try {
-     console.log('Google API call for customer:', req.params.id);
-     const customer = await getCustomerById(req.params.id);
+  // Get Google tokens
+  router.get("/api/customer/:id/google/tokens", async (req, res) => {
+    try {
+      console.log("Google API call for customer:", req.params.id);
+      const customer = await getCustomerById(req.params.id);
 
-     if (!customer) {
-       console.log('Customer not found:', req.params.id);
-       return res.status(404).json({
-         error: 'customer_not_found',
-         message: 'Customer not found. Please authenticate first.',
-         authUrl: `${process.env.BASE_URL}/auth/google`
-       });
-     }
+      if (!customer) {
+        console.log("Customer not found:", req.params.id);
+        return res.status(404).json({
+          error: "customer_not_found",
+          message: "Customer not found. Please authenticate first.",
+          authUrl: `${process.env.BASE_URL}/auth/google`,
+        });
+      }
 
-     if (!customer.google_access_token) {
-       console.log('No Google token found for:', customer.email);
-       return res.status(403).json({
-         error: 'no_google_token',
-         message: 'No Google access token found. Please re-authenticate with Google.',
-         authUrl: `${process.env.BASE_URL}/auth/google`
-       });
-     }
+      if (!customer.google_access_token) {
+        console.log("No Google token found for:", customer.email);
+        return res.status(403).json({
+          error: "no_google_token",
+          message:
+            "No Google access token found. Please re-authenticate with Google.",
+          authUrl: `${process.env.BASE_URL}/auth/google`,
+        });
+      }
 
-     console.log('Customer found, validating Google token for:', customer.email);
-     const tokenValidation = await validateToken(customer.google_access_token);
+      console.log(
+        "Customer found, validating Google token for:",
+        customer.email
+      );
+      const tokenValidation = await validateToken(customer.google_access_token);
 
-     if (!tokenValidation.valid) {
-       console.log('Google token validation failed for:', customer.email);
-       return res.status(403).json({
-         error: 'invalid_google_token',
-         message: 'Google access token is invalid or expired. Please re-authenticate with Google.',
-         authUrl: `${process.env.BASE_URL}/auth/google`
-       });
-     }
+      if (!tokenValidation.valid) {
+        console.log("Google token validation failed for:", customer.email);
+        return res.status(403).json({
+          error: "invalid_google_token",
+          message:
+            "Google access token is invalid or expired. Please re-authenticate with Google.",
+          authUrl: `${process.env.BASE_URL}/auth/google`,
+        });
+      }
 
-     res.json({
-       integration: 'google',
-       customer_id: customer.id,
-       email: customer.email,
-       name: customer.name,
-       accessToken: customer.google_access_token,
-       refreshToken: customer.google_refresh_token,
-       scopes: tokenValidation.scopes,
-       expiresIn: tokenValidation.expires_in,
-       createdAt: customer.created_at,
-       connected: true
-     });
+      res.json({
+        integration: "google",
+        customer_id: customer.id,
+        email: customer.email,
+        name: customer.name,
+        accessToken: customer.google_access_token,
+        refreshToken: customer.google_refresh_token,
+        scopes: tokenValidation.scopes,
+        expiresIn: tokenValidation.expires_in,
+        createdAt: customer.created_at,
+        connected: true,
+      });
+    } catch (error) {
+      console.error("Google API error:", error);
+      res.status(500).json({
+        error: "internal_error",
+        message: "Internal server error",
+      });
+    }
+  });
 
-   } catch (error) {
-     console.error('Google API error:', error);
-     res.status(500).json({
-       error: 'internal_error',
-       message: 'Internal server error'
-     });
-   }
- });
+  // Get Google status
+  router.get("/api/customer/:id/google/status", async (req, res) => {
+    try {
+      const customer = await getCustomerById(req.params.id);
 
- // Get Google status
- router.get('/api/customer/:id/google/status', async (req, res) => {
-   try {
-     const customer = await getCustomerById(req.params.id);
+      if (!customer) {
+        return res.status(404).json({ error: "Customer not found" });
+      }
 
-     if (!customer) {
-       return res.status(404).json({ error: 'Customer not found' });
-     }
+      if (!customer.google_access_token) {
+        return res.json({
+          integration: "google",
+          connected: false,
+          message: "Google not connected",
+          authUrl: `${process.env.BASE_URL}/auth/google`,
+        });
+      }
 
-     if (!customer.google_access_token) {
-       return res.json({
-         integration: 'google',
-         connected: false,
-         message: 'Google not connected',
-         authUrl: `${process.env.BASE_URL}/auth/google`
-       });
-     }
+      const validation = await validateToken(customer.google_access_token);
 
-     const validation = await validateToken(customer.google_access_token);
+      res.json({
+        integration: "google",
+        connected: validation.valid,
+        expiresIn: validation.expires_in,
+        scopes: validation.scopes,
+        tokenExpiry: customer.token_expiry,
+      });
+    } catch (error) {
+      res.status(500).json({ error: error.message });
+    }
+  });
 
-     res.json({
-       integration: 'google',
-       connected: validation.valid,
-       expiresIn: validation.expires_in,
-       scopes: validation.scopes,
-       tokenExpiry: customer.token_expiry
-     });
+  // Refresh Google tokens
+  router.post("/api/customer/:id/google/refresh", async (req, res) => {
+    try {
+      const customer = await getCustomerById(req.params.id);
 
-   } catch (error) {
-     res.status(500).json({ error: error.message });
-   }
- });
+      if (!customer?.google_refresh_token) {
+        return res.status(404).json({
+          success: false,
+          error: "no_refresh_token",
+          message: "No Google refresh token found for customer",
+        });
+      }
 
- // Refresh Google tokens
- router.post('/api/customer/:id/google/refresh', async (req, res) => {
-   try {
-     const customer = await getCustomerById(req.params.id);
+      console.log("🔄 Refreshing Google tokens for:", customer.email);
 
-     if (!customer?.google_refresh_token) {
-       return res.status(404).json({
-         success: false,
-         error: 'no_refresh_token',
-         message: 'No Google refresh token found for customer'
-       });
-     }
+      const tokenResponse = await fetch("https://oauth2.googleapis.com/token", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded",
+        },
+        body: new URLSearchParams({
+          client_id: process.env.GOOGLE_CLIENT_ID,
+          client_secret: process.env.GOOGLE_CLIENT_SECRET,
+          refresh_token: customer.google_refresh_token,
+          grant_type: "refresh_token",
+        }),
+      });
 
-     console.log('🔄 Refreshing Google tokens for:', customer.email);
+      const tokenData = await tokenResponse.json();
 
-     const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
-       method: 'POST',
-       headers: {
-         'Content-Type': 'application/x-www-form-urlencoded',
-       },
-       body: new URLSearchParams({
-         client_id: process.env.GOOGLE_CLIENT_ID,
-         client_secret: process.env.GOOGLE_CLIENT_SECRET,
-         refresh_token: customer.google_refresh_token,
-         grant_type: 'refresh_token'
-       })
-     });
+      if (tokenData?.access_token) {
+        const expiresIn = tokenData.expires_in || 3600;
+        const newExpiry = new Date(Date.now() + expiresIn * 1000);
 
-     const tokenData = await tokenResponse.json();
-     
-     if (tokenData?.access_token) {
-       const expiresIn = tokenData.expires_in || 3600;
-       const newExpiry = new Date(Date.now() + (expiresIn * 1000));
-       
-       await updateCustomerGoogleTokens(customer.id, {
-         googleAccessToken: tokenData.access_token,
-         googleRefreshToken: tokenData.refresh_token || customer.google_refresh_token,
-         googleTokenExpiry: newExpiry,
-         googleScopes: customer.google_scopes
-       });
+        await updateCustomerGoogleTokens(customer.id, {
+          googleAccessToken: tokenData.access_token,
+          googleRefreshToken:
+            tokenData.refresh_token || customer.google_refresh_token,
+          googleTokenExpiry: newExpiry,
+          googleScopes: customer.google_scopes,
+        });
 
-       console.log('✅ Google tokens refreshed successfully for:', customer.email);
+        console.log(
+          "✅ Google tokens refreshed successfully for:",
+          customer.email
+        );
 
-       res.json({
-         success: true,
-         accessToken: tokenData.access_token,
-         tokenExpiry: newExpiry.toISOString(),
-         expiresIn: expiresIn,
-         scopes: customer.google_scopes,
-         message: 'Google tokens refreshed successfully'
-       });
-     } else {
-       console.log('❌ No access_token found in Google response');
-       throw new Error(tokenData.error_description || 'Invalid refresh response from Google');
-     }
-   } catch (error) {
-     console.error('❌ Google token refresh failed:', error.message);
-     res.status(400).json({
-       success: false,
-       error: 'refresh_failed',
-       message: 'Google token refresh failed. Customer may need to re-authenticate.',
-       details: error.message
-     });
-   }
- });
+        res.json({
+          success: true,
+          accessToken: tokenData.access_token,
+          tokenExpiry: newExpiry.toISOString(),
+          expiresIn: expiresIn,
+          scopes: customer.google_scopes,
+          message: "Google tokens refreshed successfully",
+        });
+      } else {
+        console.log("❌ No access_token found in Google response");
+        throw new Error(
+          tokenData.error_description || "Invalid refresh response from Google"
+        );
+      }
+    } catch (error) {
+      console.error("❌ Google token refresh failed:", error.message);
+      res.status(400).json({
+        success: false,
+        error: "refresh_failed",
+        message:
+          "Google token refresh failed. Customer may need to re-authenticate.",
+        details: error.message,
+      });
+    }
+  });
 
- // Get Google live status
- router.get('/api/customer/:id/google/status/live', async (req, res) => {
-   try {
-     const customer = await getCustomerById(req.params.id);
-     
-     if (!customer?.google_access_token) {
-       return res.status(404).json({ error: 'Customer or token not found' });
-     }
-     
-     const response = await fetch(`https://www.googleapis.com/oauth2/v1/tokeninfo?access_token=${customer.google_access_token}`);
-     
-     if (response.ok) {
-       const data = await response.json();
-       res.json({
-         status: `Valid (${data.expires_in}s)`,
-         expires_in: data.expires_in,
-         email: data.email,
-         scopes: data.scope.split(' ').length + ' scopes'
-       });
-     } else {
-       res.json({ status: 'Invalid', valid: false });
-     }
-   } catch (error) {
-     res.status(500).json({ error: error.message });
-   }
- });
+  // Get Google live status
+  router.get("/api/customer/:id/google/status/live", async (req, res) => {
+    try {
+      const customer = await getCustomerById(req.params.id);
 
- // Refresh customer tokens (legacy endpoint)
- router.post('/api/customer/:id/refresh-tokens', async (req, res) => {
-   try {
-     const customer = await getCustomerById(req.params.id);
+      if (!customer?.google_access_token) {
+        return res.status(404).json({ error: "Customer or token not found" });
+      }
 
-     if (!customer || !customer.google_refresh_token) {
-       return res.status(404).json({
-         success: false,
-         error: 'Customer or refresh token not found'
-       });
-     }
+      const response = await fetch(
+        `https://www.googleapis.com/oauth2/v1/tokeninfo?access_token=${customer.google_access_token}`
+      );
 
-     console.log('🔄 Refreshing tokens for:', customer.email);
+      if (response.ok) {
+        const data = await response.json();
+        res.json({
+          status: `Valid (${data.expires_in}s)`,
+          expires_in: data.expires_in,
+          email: data.email,
+          scopes: data.scope.split(" ").length + " scopes",
+        });
+      } else {
+        res.json({ status: "Invalid", valid: false });
+      }
+    } catch (error) {
+      res.status(500).json({ error: error.message });
+    }
+  });
 
-     const response = await fetch('https://oauth2.googleapis.com/token', {
-       method: 'POST',
-       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-       body: new URLSearchParams({
-         client_id: process.env.GOOGLE_CLIENT_ID,
-         client_secret: process.env.GOOGLE_CLIENT_SECRET,
-         refresh_token: customer.google_refresh_token,
-         grant_type: 'refresh_token'
-       })
-     });
+  // Refresh customer tokens (legacy endpoint)
+  router.post("/api/customer/:id/refresh-tokens", async (req, res) => {
+    try {
+      const customer = await getCustomerById(req.params.id);
 
-     const tokens = await response.json();
+      if (!customer || !customer.google_refresh_token) {
+        return res.status(404).json({
+          success: false,
+          error: "Customer or refresh token not found",
+        });
+      }
 
-     if (tokens.access_token) {
-       const newExpiry = new Date(Date.now() + (tokens.expires_in * 1000));
+      console.log("🔄 Refreshing tokens for:", customer.email);
 
-       const stmt = db.prepare(`
+      const response = await fetch("https://oauth2.googleapis.com/token", {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: new URLSearchParams({
+          client_id: process.env.GOOGLE_CLIENT_ID,
+          client_secret: process.env.GOOGLE_CLIENT_SECRET,
+          refresh_token: customer.google_refresh_token,
+          grant_type: "refresh_token",
+        }),
+      });
+
+      const tokens = await response.json();
+
+      if (tokens.access_token) {
+        const newExpiry = new Date(Date.now() + tokens.expires_in * 1000);
+
+        const stmt = db.prepare(`
          UPDATE customers 
          SET google_access_token = ?, token_expiry = ?, updated_at = CURRENT_TIMESTAMP
          WHERE id = ?
        `);
 
-       stmt.run([tokens.access_token, newExpiry.toISOString(), customer.id]);
-       stmt.finalize();
+        stmt.run([tokens.access_token, newExpiry.toISOString(), customer.id]);
+        stmt.finalize();
 
-       console.log('✅ Tokens refreshed for:', customer.email);
+        console.log("✅ Tokens refreshed for:", customer.email);
 
-       res.json({
-         success: true,
-         newExpiry: newExpiry.toISOString(),
-         expiresIn: tokens.expires_in
-       });
-     } else {
-       console.log('❌ Token refresh failed for:', customer.email);
-       res.status(400).json({
-         success: false,
-         error: 'Token refresh failed',
-         details: tokens
-       });
-     }
-   } catch (error) {
-     console.error('Token refresh error:', error);
-     res.status(500).json({
-       success: false,
-       error: error.message
-     });
-   }
- });
-
- // =============================================================================
- // GOOGLE PICKER & SPREADSHEET MANAGEMENT
- // =============================================================================
-
-// Serve picker setup page
-// Replace the entire "/setup/spreadsheet" route (around line 350) with this updated version:
-
-router.get('/setup/spreadsheet', async (req, res) => {
-  try {
-    if (!req.isAuthenticated() && !req.session?.authenticated) {
-      return res.redirect('/login?redirect=/setup/spreadsheet');
+        res.json({
+          success: true,
+          newExpiry: newExpiry.toISOString(),
+          expiresIn: tokens.expires_in,
+        });
+      } else {
+        console.log("❌ Token refresh failed for:", customer.email);
+        res.status(400).json({
+          success: false,
+          error: "Token refresh failed",
+          details: tokens,
+        });
+      }
+    } catch (error) {
+      console.error("Token refresh error:", error);
+      res.status(500).json({
+        success: false,
+        error: error.message,
+      });
     }
+  });
 
-    const userId = req.user?.id || req.session?.userInfo?.customerId;
-    const userEmail = req.user?.email || req.session?.userInfo?.email;
-    const userName = req.user?.name || req.session?.userInfo?.name || 'User';
+  // =============================================================================
+  // GOOGLE PICKER & SPREADSHEET MANAGEMENT
+  // =============================================================================
 
-    if (!userId) {
-      return res.redirect('/login?error=no_user_id');
-    }
+  // Serve picker setup page
+  // Replace the entire "/setup/spreadsheet" route (around line 350) with this updated version:
 
-    const customer = await getCustomerById(userId);
-    
-    if (!customer?.google_access_token) {
-      return res.redirect('/auth/google?setup=spreadsheet');
-    }
+  router.get("/setup/spreadsheet", async (req, res) => {
+    try {
+      if (!req.isAuthenticated() && !req.session?.authenticated) {
+        return res.redirect("/login?redirect=/setup/spreadsheet");
+      }
 
-    res.send(`
+      const userId = req.user?.id || req.session?.userInfo?.customerId;
+      const userEmail = req.user?.email || req.session?.userInfo?.email;
+      const userName = req.user?.name || req.session?.userInfo?.name || "User";
+
+      if (!userId) {
+        return res.redirect("/login?error=no_user_id");
+      }
+
+      const customer = await getCustomerById(userId);
+
+      if (!customer?.google_access_token) {
+        return res.redirect("/auth/google?setup=spreadsheet");
+      }
+
+      res.send(`
       <!DOCTYPE html>
       <html lang="en">
       <head>
@@ -866,7 +888,8 @@ router.get('/setup/spreadsheet', async (req, res) => {
               </div>
 
               <div class="navigation">
-                  <a href="/dashboard" class="btn btn-secondary">← Portal Home</a>
+              <a href="/" class="btn" style="background: #6c757d">← Portal Home< /a>
+                                
               </div>
           </div>
 
@@ -1105,389 +1128,392 @@ router.get('/setup/spreadsheet', async (req, res) => {
       </body>
       </html>
     `);
-
-  } catch (error) {
-    console.error('Spreadsheet setup error:', error);
-    res.status(500).send('Setup page error: ' + error.message);
-  }
-});
-
-
-// Remove a spreadsheet
-router.delete('/api/customer/:id/spreadsheet/:fileId', async (req, res) => {
-  try {
-    const { id: customerId, fileId } = req.params;
-    console.log('🗑️ DELETE endpoint hit:', { customerId, fileId });
-    
-    db.run(`DELETE FROM customer_spreadsheets WHERE customer_id = ? AND file_id = ?`, [customerId, fileId], function(err) {
-      if (err) {
-        console.error('❌ Remove spreadsheet error:', err);
-        return res.status(500).json({ error: 'Server error' });
-      }
-      
-      console.log('🗑️ Delete result - changes:', this.changes);
-      
-      if (this.changes > 0) {
-        console.log('✅ Spreadsheet removed successfully');
-        res.json({ success: true, message: 'Spreadsheet removed successfully' });
-      } else {
-        console.log('❌ Spreadsheet not found in database');
-        res.status(404).json({ error: 'Spreadsheet not found' });
-      }
-    });
-    
-  } catch (error) {
-    console.error('❌ Remove spreadsheet error:', error);
-    res.status(500).json({ error: 'Server error' });
-  }
-});
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-// Save selected spreadsheet  
-router.post('/api/customer/:id/spreadsheet', async (req, res) => {
-  try {
-    const { fileId, fileName, purpose } = req.body;  // Add purpose here
-    const customerId = req.params.id;
-
-    if (!fileId || !fileName) {
-      return res.status(400).json({ error: 'Missing fileId or fileName' });
+    } catch (error) {
+      console.error("Spreadsheet setup error:", error);
+      res.status(500).send("Setup page error: " + error.message);
     }
+  });
 
-    const customer = await getCustomerById(customerId);
-    if (!customer?.google_access_token) {
-      return res.status(403).json({ error: 'No valid Google authentication' });
-    }
-
-    const finalPurpose = purpose || 'General';  // Default to General if not provided
-
-    const stmt = db.prepare(`
-      INSERT OR REPLACE INTO customer_spreadsheets 
-      (customer_id, file_id, file_name, purpose, selected_at) 
-      VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)
-    `);
-
-    stmt.run([customerId, fileId, fileName, finalPurpose], function (err) {
-      if (err) {
-        console.error('Error saving spreadsheet:', err);
-        return res.status(500).json({ error: 'Failed to save spreadsheet' });
-      }
-
-      console.log('✅ Spreadsheet saved to new table:', customer.email, '- File:', fileName, '- Purpose:', finalPurpose);
-      
-      res.json({ 
-        success: true, 
-        message: 'Spreadsheet configuration saved',
-        spreadsheet: { fileId, fileName, purpose: finalPurpose }
-      });
-    });
-
-    stmt.finalize();
-
-  } catch (error) {
-    console.error('Save spreadsheet error:', error);
-    res.status(500).json({ error: 'Server error' });
-  }
-});
-
- // Create new expense spreadsheet
-router.post('/api/customer/:id/spreadsheet/create', async (req, res) => {
-  try {
-    const customerId = req.params.id;
-    const { name } = req.body; // Get custom name from request
-    const customer = await getCustomerById(customerId);
-
-    if (!customer?.google_access_token) {
-      return res.status(403).json({ error: 'No valid Google authentication' });
-    }
-
-    // Use custom name or default
-    const spreadsheetName = name || `Expense Tracker - ${customer.name || customer.email}`;
-
-    const createResponse = await fetch('https://sheets.googleapis.com/v4/spreadsheets', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${customer.google_access_token}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        properties: {
-          title: spreadsheetName
-        },
-        sheets: [{
-          properties: {
-            title: 'Receipts'
-          }
-        }]
-      })
-    });
-
-    const spreadsheetData = await createResponse.json();
-
-    if (!createResponse.ok) {
-      throw new Error(spreadsheetData.error?.message || 'Failed to create spreadsheet');
-    }
-
-    const fileId = spreadsheetData.spreadsheetId;
-    const fileName = spreadsheetData.properties.title;
-
-    // Add headers to the spreadsheet
-    await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${fileId}/values/Receipts!A1:F1?valueInputOption=RAW`, {
-      method: 'PUT',
-      headers: {
-        'Authorization': `Bearer ${customer.google_access_token}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        values: [['Merchant', 'Date', 'Amount', 'Tax', 'Category', 'Items']]
-      })
-    });
-
-    // Save to database
-    const stmt = db.prepare(`
-      INSERT OR REPLACE INTO customer_spreadsheets 
-      (customer_id, file_id, file_name, purpose, selected_at) 
-      VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)
-    `);
-
-    stmt.run([customerId, fileId, fileName, 'General'], function (err) {
-      if (err) {
-        console.error('Error saving new spreadsheet:', err);
-        return res.status(500).json({ error: 'Failed to save spreadsheet' });
-      }
-
-      console.log('✅ New spreadsheet created for:', customer.email);
-      
-      res.json({
-        success: true,
-        spreadsheet: {
-          fileId,
-          fileName,
-          url: `https://docs.google.com/spreadsheets/d/${fileId}`
-        }
-      });
-    });
-
-    stmt.finalize();
-
-  } catch (error) {
-    console.error('Create spreadsheet error:', error);
-    res.status(500).json({ error: error.message });
-  }
-});
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
- // Get customer's configured spreadsheet (for n8n)
- router.get('/api/customer/:id/spreadsheet', async (req, res) => {
-   try {
-     const customer = await getCustomerById(req.params.id);
-
-     if (!customer) {
-       return res.status(404).json({ error: 'Customer not found' });
-     }
-
-     if (!customer.selected_spreadsheet_id) {
-       return res.status(404).json({ 
-         error: 'No spreadsheet configured',
-         message: 'Customer needs to configure a spreadsheet first',
-         setupUrl: `https://auth.robosouthla.com/setup/spreadsheet`
-       });
-     }
-
-     res.json({
-       fileId: customer.selected_spreadsheet_id,
-       fileName: customer.selected_spreadsheet_name,
-       selectedAt: customer.spreadsheet_selected_at,
-       customer: {
-         id: customer.id,
-         email: customer.email,
-         name: customer.name
-       }
-     });
-
-   } catch (error) {
-     console.error('Get spreadsheet error:', error);
-     res.status(500).json({ error: 'Server error' });
-   }
- });
-
- // Get spreadsheet by Telegram chat ID (for n8n integration)
- router.get('/api/telegram/:chatId/spreadsheet', async (req, res) => {
-   try {
-     const { chatId } = req.params;
-     
-     const customer = await getCustomerById(chatId);
-
-     if (!customer?.selected_spreadsheet_id) {
-       return res.status(404).json({ 
-         error: 'No spreadsheet configured for this user',
-         setupUrl: `https://auth.robosouthla.com/setup/spreadsheet`
-       });
-     }
-
-     res.json({
-       fileId: customer.selected_spreadsheet_id,
-       fileName: customer.selected_spreadsheet_name,
-       sheetName: 'Receipts'
-     });
-
-   } catch (error) {
-     console.error('Telegram spreadsheet lookup error:', error);
-     res.status(500).json({ error: 'Server error' });
-   }
- });
-
-// Grant API write permissions after picker selection
-router.post('/api/customer/:id/spreadsheet/grant-access', async (req, res) => {
-  try {
-    const customerId = req.params.id;
-
-    const customer = await getCustomerById(customerId);
-    if (!customer?.google_access_token) {
-      return res.status(403).json({ error: 'No valid Google authentication' });
-    }
-
-    if (!customer.selected_spreadsheet_id) {
-      return res.status(400).json({ error: 'No spreadsheet configured' });
-    }
-
-    
-    // Use the file ID from database instead of request body
-    const fileId = customer.selected_spreadsheet_id;
-    console.log('🔍 Customer data:', {
-      id: customer.id,
-      email: customer.email,
-      selected_spreadsheet_id: customer.selected_spreadsheet_id,
-      has_access_token: !!customer.google_access_token
-    });
-    console.log('🔍 Using file ID from database:', fileId);
-    console.log('Granting API access for file:', fileId, 'to customer:', customer.email);
-
-    // Create a timeout promise
-    const timeoutPromise = new Promise((_, reject) =>
-      setTimeout(() => reject(new Error('Request timeout')), 10000)
-    );
-
+  // Remove a spreadsheet
+  router.delete("/api/customer/:id/spreadsheet/:fileId", async (req, res) => {
     try {
-      const fetchPromise = fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?fields=name,permissions`, {
-        headers: {
-          'Authorization': `Bearer ${customer.google_access_token}`
+      const { id: customerId, fileId } = req.params;
+      console.log("🗑️ DELETE endpoint hit:", { customerId, fileId });
+
+      db.run(
+        `DELETE FROM customer_spreadsheets WHERE customer_id = ? AND file_id = ?`,
+        [customerId, fileId],
+        function (err) {
+          if (err) {
+            console.error("❌ Remove spreadsheet error:", err);
+            return res.status(500).json({ error: "Server error" });
+          }
+
+          console.log("🗑️ Delete result - changes:", this.changes);
+
+          if (this.changes > 0) {
+            console.log("✅ Spreadsheet removed successfully");
+            res.json({
+              success: true,
+              message: "Spreadsheet removed successfully",
+            });
+          } else {
+            console.log("❌ Spreadsheet not found in database");
+            res.status(404).json({ error: "Spreadsheet not found" });
+          }
         }
+      );
+    } catch (error) {
+      console.error("❌ Remove spreadsheet error:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  // Save selected spreadsheet
+  router.post("/api/customer/:id/spreadsheet", async (req, res) => {
+    try {
+      const { fileId, fileName, purpose } = req.body; // Add purpose here
+      const customerId = req.params.id;
+
+      if (!fileId || !fileName) {
+        return res.status(400).json({ error: "Missing fileId or fileName" });
+      }
+
+      const customer = await getCustomerById(customerId);
+      if (!customer?.google_access_token) {
+        return res
+          .status(403)
+          .json({ error: "No valid Google authentication" });
+      }
+
+      const finalPurpose = purpose || "General"; // Default to General if not provided
+
+      const stmt = db.prepare(`
+      INSERT OR REPLACE INTO customer_spreadsheets 
+      (customer_id, file_id, file_name, purpose, selected_at) 
+      VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)
+    `);
+
+      stmt.run([customerId, fileId, fileName, finalPurpose], function (err) {
+        if (err) {
+          console.error("Error saving spreadsheet:", err);
+          return res.status(500).json({ error: "Failed to save spreadsheet" });
+        }
+
+        console.log(
+          "✅ Spreadsheet saved to new table:",
+          customer.email,
+          "- File:",
+          fileName,
+          "- Purpose:",
+          finalPurpose
+        );
+
+        res.json({
+          success: true,
+          message: "Spreadsheet configuration saved",
+          spreadsheet: { fileId, fileName, purpose: finalPurpose },
+        });
       });
 
-      const fileCheckResponse = await Promise.race([fetchPromise, timeoutPromise]);
-      
-      // if (!fileCheckResponse.ok) {
-      //   console.log('❌ Drive API returned status:', fileCheckResponse.status);
-      //   return res.status(403).json({ 
-      //     error: 'Cannot access file',
-      //     message: 'File not accessible with current permissions'
-      //   });
-      // }
+      stmt.finalize();
+    } catch (error) {
+      console.error("Save spreadsheet error:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
 
-      if (!fileCheckResponse.ok) {
-        const errorBody = await fileCheckResponse.text();
-        console.log('❌ Drive API returned status:', fileCheckResponse.status);
-        console.log('❌ Drive API error details:', errorBody);
-        return res.status(403).json({ 
-          error: 'Cannot access file',
-          message: 'File not accessible with current permissions'
+  // Create new expense spreadsheet
+  router.post("/api/customer/:id/spreadsheet/create", async (req, res) => {
+    try {
+      const customerId = req.params.id;
+      const { name } = req.body; // Get custom name from request
+      const customer = await getCustomerById(customerId);
+
+      if (!customer?.google_access_token) {
+        return res
+          .status(403)
+          .json({ error: "No valid Google authentication" });
+      }
+
+      // Use custom name or default
+      const spreadsheetName =
+        name || `Expense Tracker - ${customer.name || customer.email}`;
+
+      const createResponse = await fetch(
+        "https://sheets.googleapis.com/v4/spreadsheets",
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${customer.google_access_token}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            properties: {
+              title: spreadsheetName,
+            },
+            sheets: [
+              {
+                properties: {
+                  title: "Receipts",
+                },
+              },
+            ],
+          }),
+        }
+      );
+
+      const spreadsheetData = await createResponse.json();
+
+      if (!createResponse.ok) {
+        throw new Error(
+          spreadsheetData.error?.message || "Failed to create spreadsheet"
+        );
+      }
+
+      const fileId = spreadsheetData.spreadsheetId;
+      const fileName = spreadsheetData.properties.title;
+
+      // Add headers to the spreadsheet
+      await fetch(
+        `https://sheets.googleapis.com/v4/spreadsheets/${fileId}/values/Receipts!A1:F1?valueInputOption=RAW`,
+        {
+          method: "PUT",
+          headers: {
+            Authorization: `Bearer ${customer.google_access_token}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            values: [
+              ["Merchant", "Date", "Amount", "Tax", "Category", "Items"],
+            ],
+          }),
+        }
+      );
+
+      // Save to database
+      const stmt = db.prepare(`
+      INSERT OR REPLACE INTO customer_spreadsheets 
+      (customer_id, file_id, file_name, purpose, selected_at) 
+      VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)
+    `);
+
+      stmt.run([customerId, fileId, fileName, "General"], function (err) {
+        if (err) {
+          console.error("Error saving new spreadsheet:", err);
+          return res.status(500).json({ error: "Failed to save spreadsheet" });
+        }
+
+        console.log("✅ New spreadsheet created for:", customer.email);
+
+        res.json({
+          success: true,
+          spreadsheet: {
+            fileId,
+            fileName,
+            url: `https://docs.google.com/spreadsheets/d/${fileId}`,
+          },
+        });
+      });
+
+      stmt.finalize();
+    } catch (error) {
+      console.error("Create spreadsheet error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Get customer's configured spreadsheet (for n8n)
+  router.get("/api/customer/:id/spreadsheet", async (req, res) => {
+    try {
+      const customer = await getCustomerById(req.params.id);
+
+      if (!customer) {
+        return res.status(404).json({ error: "Customer not found" });
+      }
+
+      if (!customer.selected_spreadsheet_id) {
+        return res.status(404).json({
+          error: "No spreadsheet configured",
+          message: "Customer needs to configure a spreadsheet first",
+          setupUrl: `https://auth.robosouthla.com/setup/spreadsheet`,
         });
       }
 
-      const fileData = await fileCheckResponse.json();
-      console.log('✅ File accessible:', fileData.name);
-
-      res.json({ 
-        success: true, 
-        message: 'File access confirmed - picker permissions granted',
-        fileName: fileData.name
+      res.json({
+        fileId: customer.selected_spreadsheet_id,
+        fileName: customer.selected_spreadsheet_name,
+        selectedAt: customer.spreadsheet_selected_at,
+        customer: {
+          id: customer.id,
+          email: customer.email,
+          name: customer.name,
+        },
       });
-
     } catch (error) {
-      console.log('❌ Drive API error:', error.message);
-      return res.status(500).json({ error: 'Drive API timeout or error', details: error.message });
+      console.error("Get spreadsheet error:", error);
+      res.status(500).json({ error: "Server error" });
     }
+  });
 
-  } catch (error) {
-    console.error('Grant access error:', error);
-    res.status(500).json({ 
-      error: 'Server error',
-      message: error.message 
-    });
-  }
-});
+  // Get spreadsheet by Telegram chat ID (for n8n integration)
+  router.get("/api/telegram/:chatId/spreadsheet", async (req, res) => {
+    try {
+      const { chatId } = req.params;
 
+      const customer = await getCustomerById(chatId);
 
-// Get all spreadsheets for a customer
-router.get('/api/customer/:id/spreadsheets', async (req, res) => {
-  try {
-    const customerId = req.params.id;
-    console.log('🔍 Getting spreadsheets for customer:', customerId);
-    
-    db.all(`
+      if (!customer?.selected_spreadsheet_id) {
+        return res.status(404).json({
+          error: "No spreadsheet configured for this user",
+          setupUrl: `https://auth.robosouthla.com/setup/spreadsheet`,
+        });
+      }
+
+      res.json({
+        fileId: customer.selected_spreadsheet_id,
+        fileName: customer.selected_spreadsheet_name,
+        sheetName: "Receipts",
+      });
+    } catch (error) {
+      console.error("Telegram spreadsheet lookup error:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  // Grant API write permissions after picker selection
+  router.post(
+    "/api/customer/:id/spreadsheet/grant-access",
+    async (req, res) => {
+      try {
+        const customerId = req.params.id;
+
+        const customer = await getCustomerById(customerId);
+        if (!customer?.google_access_token) {
+          return res
+            .status(403)
+            .json({ error: "No valid Google authentication" });
+        }
+
+        if (!customer.selected_spreadsheet_id) {
+          return res.status(400).json({ error: "No spreadsheet configured" });
+        }
+
+        // Use the file ID from database instead of request body
+        const fileId = customer.selected_spreadsheet_id;
+        console.log("🔍 Customer data:", {
+          id: customer.id,
+          email: customer.email,
+          selected_spreadsheet_id: customer.selected_spreadsheet_id,
+          has_access_token: !!customer.google_access_token,
+        });
+        console.log("🔍 Using file ID from database:", fileId);
+        console.log(
+          "Granting API access for file:",
+          fileId,
+          "to customer:",
+          customer.email
+        );
+
+        // Create a timeout promise
+        const timeoutPromise = new Promise((_, reject) =>
+          setTimeout(() => reject(new Error("Request timeout")), 10000)
+        );
+
+        try {
+          const fetchPromise = fetch(
+            `https://www.googleapis.com/drive/v3/files/${fileId}?fields=name,permissions`,
+            {
+              headers: {
+                Authorization: `Bearer ${customer.google_access_token}`,
+              },
+            }
+          );
+
+          const fileCheckResponse = await Promise.race([
+            fetchPromise,
+            timeoutPromise,
+          ]);
+
+          // if (!fileCheckResponse.ok) {
+          //   console.log('❌ Drive API returned status:', fileCheckResponse.status);
+          //   return res.status(403).json({
+          //     error: 'Cannot access file',
+          //     message: 'File not accessible with current permissions'
+          //   });
+          // }
+
+          if (!fileCheckResponse.ok) {
+            const errorBody = await fileCheckResponse.text();
+            console.log(
+              "❌ Drive API returned status:",
+              fileCheckResponse.status
+            );
+            console.log("❌ Drive API error details:", errorBody);
+            return res.status(403).json({
+              error: "Cannot access file",
+              message: "File not accessible with current permissions",
+            });
+          }
+
+          const fileData = await fileCheckResponse.json();
+          console.log("✅ File accessible:", fileData.name);
+
+          res.json({
+            success: true,
+            message: "File access confirmed - picker permissions granted",
+            fileName: fileData.name,
+          });
+        } catch (error) {
+          console.log("❌ Drive API error:", error.message);
+          return res.status(500).json({
+            error: "Drive API timeout or error",
+            details: error.message,
+          });
+        }
+      } catch (error) {
+        console.error("Grant access error:", error);
+        res.status(500).json({
+          error: "Server error",
+          message: error.message,
+        });
+      }
+    }
+  );
+
+  // Get all spreadsheets for a customer
+  router.get("/api/customer/:id/spreadsheets", async (req, res) => {
+    try {
+      const customerId = req.params.id;
+      console.log("🔍 Getting spreadsheets for customer:", customerId);
+
+      db.all(
+        `
       SELECT file_id, file_name, purpose, selected_at, created_at 
       FROM customer_spreadsheets 
       WHERE customer_id = ?
       ORDER BY selected_at DESC
-    `, [customerId], (err, rows) => {
-      if (err) {
-        console.error('Query error:', err);
-        return res.status(500).json({ error: 'Database error' });
-      }
-      
-      console.log('🔍 Found spreadsheets:', rows);
-      
-      res.json({
-        customer_id: customerId,
-        spreadsheets: rows
-      });
-    });
-    
-  } catch (error) {
-    console.error('Get spreadsheets error:', error);
-    res.status(500).json({ error: 'Server error' });
-  }
-});
+    `,
+        [customerId],
+        (err, rows) => {
+          if (err) {
+            console.error("Query error:", err);
+            return res.status(500).json({ error: "Database error" });
+          }
 
+          console.log("🔍 Found spreadsheets:", rows);
 
+          res.json({
+            customer_id: customerId,
+            spreadsheets: rows,
+          });
+        }
+      );
+    } catch (error) {
+      console.error("Get spreadsheets error:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
 
-
-return router;
+  return router;
 };

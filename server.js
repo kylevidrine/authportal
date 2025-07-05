@@ -38,7 +38,6 @@ const REQUIRED_SCOPES = [
   "https://www.googleapis.com/auth/gmail.labels",
   "https://www.googleapis.com/auth/drive.file",
   "https://www.googleapis.com/auth/contacts",
-  // 'https://www.googleapis.com/auth/spreadsheets',
   "https://www.googleapis.com/auth/gmail.send",
   "https://www.googleapis.com/auth/calendar",
   "https://www.googleapis.com/auth/gmail.modify",
