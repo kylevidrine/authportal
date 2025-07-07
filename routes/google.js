@@ -885,13 +885,9 @@ module.exports = (dependencies) => {
                           Leave blank to auto-generate name like "Expense Tracker - ${userName}"
                       </small>
                   </div>
-              </div>
-
-              <div class="navigation">
-              <a href="/" class="btn" style="background: #6c757d">← Portal Home< /a>
-                                
-              </div>
-          </div>
+                  <div class="navigation">
+                      <a href="/" class="btn" style="background: #6c757d">← Portal Home</a>
+                  </div>
 
           <script>
               const userId = '${userId}';
@@ -957,7 +953,6 @@ module.exports = (dependencies) => {
                                   </div>
                               </div>
                               <div class="actions">
-                                  <span class="status-badge status-broken">API Access Broken</span>
                                   <button class="btn btn-primary" onclick="openInDrive('\${sheet.file_id}')">
                                       🔗 Open in Sheets
                                   </button>
