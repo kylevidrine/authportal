@@ -113,26 +113,6 @@
           <div class="stat-label">QuickBooks Only</div>
         </div>
       </div>
-
-      <div class="info-box">
-        <h3>🔗 Integration Status Overview</h3>
-        <p>
-          <strong>Fully Connected:</strong> Customers with both Google and
-          QuickBooks authorization
-        </p>
-        <p><strong>Available Integrations:</strong></p>
-        <ul style="text-align: left">
-          <li>
-            <strong>Google Workspace:</strong> Sheets, Gmail, Calendar,
-            Contacts, Drive
-          </li>
-          <li>
-            <strong>QuickBooks:</strong> Accounting data access (Environment:
-            <span id="qbEnvironment">Loading...</span>)
-          </li>
-        </ul>
-      </div>
-
       <table>
         <thead>
           <tr>
@@ -151,45 +131,6 @@
           </tr>
         </tbody>
       </table>
-
-      <div class="info-box">
-        <h3>🔧 N8N Integration Guide</h3>
-        <ol>
-          <li><strong>Copy Customer ID</strong> from the table above</li>
-          <li>
-            <strong>Google API:</strong> Use
-            <code>GET /api/customer/{id}</code> for Google tokens
-          </li>
-          <li>
-            <strong>QuickBooks API:</strong> Use
-            <code>GET /api/customer/{id}/quickbooks/tokens</code> for QB tokens
-          </li>
-          <li>
-            <strong>Status Check:</strong> Use
-            <code>GET /api/customer/{id}/quickbooks</code> to verify QB
-            connection
-          </li>
-        </ol>
-
-        <h4>Environment Variables Needed:</h4>
-        <ul
-          style="
-            font-family: monospace;
-            font-size: 13px;
-            background: #f8f9fa;
-            padding: 15px;
-            border-radius: 6px;
-          "
-        >
-          <li>QB_CLIENT_ID_PROD=your_production_app_id</li>
-          <li>QB_CLIENT_SECRET_PROD=your_production_app_secret</li>
-          <li>QB_CLIENT_ID_SANDBOX=your_sandbox_app_id</li>
-          <li>QB_CLIENT_SECRET_SANDBOX=your_sandbox_app_secret</li>
-          <li>QB_ENVIRONMENT=production (or sandbox for testing)</li>
-        </ul>
-      </div>
-
-      <!-- Add this section to your admin.html file after the existing customer management section -->
 
       <!-- Telegram Bot Management Section -->
       <div class="info-box" style="background: #f0f9ff; margin: 30px 0">
