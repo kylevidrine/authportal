@@ -1,15 +1,15 @@
 // routes/pages.js
-const express = require('express');
+const express = require("express");
 const router = express.Router();
 
 module.exports = (dependencies) => {
-  const { 
+  const {
     getAllCustomers,
     getCustomerById,
     validateToken,
     validateQBToken,
     QB_ENVIRONMENT,
-    requireAuth
+    requireAuth,
   } = dependencies;
 
   // =============================================================================
@@ -17,14 +17,17 @@ module.exports = (dependencies) => {
   // =============================================================================
 
   // Main portal page
-  router.get('/', requireAuth, async (req, res) => {
+  router.get("/", requireAuth, async (req, res) => {
     try {
-      const authType = req.user ? 'google' : req.session?.userInfo?.authType || 'basic';
-      const userName = req.user?.name || req.session?.userInfo?.name || 'User';
+      const authType = req.user
+        ? "google"
+        : req.session?.userInfo?.authType || "basic";
+      const userName = req.user?.name || req.session?.userInfo?.name || "User";
 
       // Determine auth status properly
-      const isFacebookUser = authType === 'facebook';
-      const isGoogleUser = authType === 'google' && req.user && req.user.google_access_token;
+      const isFacebookUser = authType === "facebook";
+      const isGoogleUser =
+        authType === "google" && req.user && req.user.google_access_token;
 
       // Get customer data to check QuickBooks status
       let customer = null;
@@ -36,37 +39,41 @@ module.exports = (dependencies) => {
           customer = await getCustomerById(req.user.id);
           hasQBAuth = !!(customer?.qb_access_token && customer?.qb_company_id);
         } catch (error) {
-          console.error('Error fetching Google customer:', error);
+          console.error("Error fetching Google customer:", error);
         }
       } else if (req.session?.authenticated && req.session?.userInfo) {
         // Basic auth or Facebook user
         const userEmail = req.session.userInfo.email;
-        
-        if (authType === 'facebook' && req.session.userInfo.customerId) {
+
+        if (authType === "facebook" && req.session.userInfo.customerId) {
           try {
             customer = await getCustomerById(req.session.userInfo.customerId);
-            hasQBAuth = !!(customer?.qb_access_token && customer?.qb_company_id);
+            hasQBAuth = !!(
+              customer?.qb_access_token && customer?.qb_company_id
+            );
           } catch (error) {
-            console.error('Error fetching Facebook customer:', error);
+            console.error("Error fetching Facebook customer:", error);
           }
         } else {
           // Check if basic auth user has a customer record
           try {
             const existingCustomers = await getAllCustomers();
-            customer = existingCustomers.find(c => c.email === userEmail);
-            hasQBAuth = !!(customer?.qb_access_token && customer?.qb_company_id);
+            customer = existingCustomers.find((c) => c.email === userEmail);
+            hasQBAuth = !!(
+              customer?.qb_access_token && customer?.qb_company_id
+            );
           } catch (error) {
-            console.error('Error fetching basic auth customer:', error);
+            console.error("Error fetching basic auth customer:", error);
           }
         }
       }
 
-      console.log('Main page auth status:', {
+      console.log("Main page auth status:", {
         authType,
         isGoogleUser,
         isFacebookUser,
         hasQBAuth,
-        customerId: customer?.id
+        customerId: customer?.id,
       });
 
       res.send(`
@@ -301,9 +308,11 @@ module.exports = (dependencies) => {
               <div>
                 <strong>👋 Welcome back, ${userName}!</strong> 
                 <span style="font-size: 12px; color: #666;">(${
-                  isGoogleUser ? 'Google OAuth' : 
-                  isFacebookUser ? 'Facebook OAuth' : 
-                  'Basic Auth'
+                  isGoogleUser
+                    ? "Google OAuth"
+                    : isFacebookUser
+                    ? "Facebook OAuth"
+                    : "Basic Auth"
                 })</span>
               </div>
               <div>
@@ -323,7 +332,7 @@ module.exports = (dependencies) => {
             
             <div class="auth-options">
               <!-- Google Workspace Card -->
-              <div class="auth-card google ${isGoogleUser ? 'connected' : ''}">
+              <div class="auth-card google ${isGoogleUser ? "connected" : ""}">
                 <h3>🔗 Google Workspace</h3>
                 <div class="feature-grid">
                   <div class="feature-item">
@@ -351,21 +360,25 @@ module.exports = (dependencies) => {
                     <span>AI Workflows</span>
                   </div>
                 </div>
-                ${isGoogleUser ? `
+                ${
+                  isGoogleUser
+                    ? `
                   <p style="color: #28a745; font-weight: bold; margin-bottom: 15px;">✅ Connected</p>
                   <button onclick="disconnectGoogle()" class="btn-modern btn-disconnect">
                     <span>🔌 Disconnect Google</span>
                   </button>
-                ` : `
+                `
+                    : `
                   <a href="/auth/google" class="btn-modern btn-connect">
                     <div class="logo-icon logo-google"></div>
                     <span>Connect with Google</span>
                   </a>
-                `}
+                `
+                }
               </div>
 
               <!-- QuickBooks Card -->
-              <div class="auth-card quickbooks ${hasQBAuth ? 'connected' : ''}">
+              <div class="auth-card quickbooks ${hasQBAuth ? "connected" : ""}">
                 <h3>📊 QuickBooks Online</h3>
                 <div class="feature-grid">
                   <div class="feature-item">
@@ -393,21 +406,27 @@ module.exports = (dependencies) => {
                     <span>AI Automation</span>
                   </div>
                 </div>
-                ${hasQBAuth ? `
+                ${
+                  hasQBAuth
+                    ? `
                   <p style="color: #28a745; font-weight: bold; margin-bottom: 15px;">✅ Connected</p>
                   <button onclick="disconnectQuickBooks()" class="btn-modern btn-disconnect">
                     <span>🔌 Disconnect QuickBooks</span>
                   </button>
-                ` : `
+                `
+                    : `
                   <a href="/auth/quickbooks/standalone" class="btn-modern btn-qb-connect">
                     <div class="logo-icon logo-quickbooks"></div>
                     <span>Connect QuickBooks</span>
                   </a>
-                `}
+                `
+                }
               </div>
 
               <!-- Facebook Card -->
-              <div class="auth-card facebook ${isFacebookUser ? 'connected' : ''}">
+              <div class="auth-card facebook ${
+                isFacebookUser ? "connected" : ""
+              }">
                 <h3>📱 Facebook Social</h3>
                 <div class="feature-grid">
                   <div class="feature-item">
@@ -435,17 +454,21 @@ module.exports = (dependencies) => {
                     <span>Mobile Auth</span>
                   </div>
                 </div>
-                ${isFacebookUser ? `
+                ${
+                  isFacebookUser
+                    ? `
                   <p style="color: #28a745; font-weight: bold; margin-bottom: 15px;">✅ Connected</p>
                   <button onclick="disconnectFacebook()" class="btn-modern btn-disconnect">
                     <span>🔌 Disconnect Facebook</span>
                   </button>
-                ` : `
+                `
+                    : `
                   <a href="/auth/facebook" class="btn-modern btn-facebook-connect">
                     <div class="logo-icon logo-facebook"></div>
                     <span>Connect with Facebook</span>
                   </a>
-                `}
+                `
+                }
               </div>
 
               <!-- Instagram Placeholder -->
@@ -570,26 +593,28 @@ module.exports = (dependencies) => {
         </body>
         </html>
       `);
-
     } catch (error) {
-      console.error('❌ Main page error:', error);
-      res.status(500).send('Error loading main page: ' + error.message);
+      console.error("❌ Main page error:", error);
+      res.status(500).send("Error loading main page: " + error.message);
     }
   });
 
   // Dashboard page
-  router.get('/dashboard', requireAuth, async (req, res) => {
+  router.get("/dashboard", requireAuth, async (req, res) => {
     try {
-      console.log('📊 Dashboard access check:', {
+      console.log("📊 Dashboard access check:", {
         sessionAuth: req.session?.authenticated,
         passportAuth: req.isAuthenticated?.(),
         hasUser: !!req.user,
-        userInfo: req.session?.userInfo
+        userInfo: req.session?.userInfo,
       });
 
       // Determine auth type and get user info
-      let userName, userEmail, customerId, customer = null;
-      let authType = 'unknown';
+      let userName,
+        userEmail,
+        customerId,
+        customer = null;
+      let authType = "unknown";
       let isGoogleUser = false;
       let isFacebookUser = false;
 
@@ -598,62 +623,66 @@ module.exports = (dependencies) => {
         userName = req.user.name;
         userEmail = req.user.email;
         customerId = req.user.id;
-        
+
         try {
           customer = await getCustomerById(req.user.id);
-          console.log('🔍 Customer from DB:', {
+          console.log("🔍 Customer from DB:", {
             id: customer?.id,
             email: customer?.email,
-            hasGoogleTokens: !!(customer?.google_access_token),
-            hasQBTokens: !!(customer?.qb_access_token)
+            hasGoogleTokens: !!customer?.google_access_token,
+            hasQBTokens: !!customer?.qb_access_token,
           });
-          
+
           // The KEY FIX: Check database tokens, not just session
-          const hasActiveGoogleTokens = !!(customer?.google_access_token && customer?.google_refresh_token);
-          
+          const hasActiveGoogleTokens = !!(
+            customer?.google_access_token && customer?.google_refresh_token
+          );
+
           if (hasActiveGoogleTokens) {
-            authType = 'google';
+            authType = "google";
             isGoogleUser = true;
-            console.log('✅ Active Google user with valid tokens');
-          } else if (customer?.id?.startsWith('fb_')) {
-            authType = 'facebook';
+            console.log("✅ Active Google user with valid tokens");
+          } else if (customer?.id?.startsWith("fb_")) {
+            authType = "facebook";
             isFacebookUser = true;
-            console.log('✅ Facebook user');
+            console.log("✅ Facebook user");
           } else {
             // User authenticated via Google but tokens were removed - treat as basic user
-            authType = 'disconnected_google';
+            authType = "disconnected_google";
             isGoogleUser = false;
-            console.log('⚠️ User authenticated but no Google tokens - treating as disconnected');
+            console.log(
+              "⚠️ User authenticated but no Google tokens - treating as disconnected"
+            );
           }
-          
         } catch (error) {
-          console.error('Error fetching customer:', error);
-          authType = 'passport_user';
+          console.error("Error fetching customer:", error);
+          authType = "passport_user";
         }
-        
       } else if (req.session?.authenticated && req.session?.userInfo) {
         // Basic auth or session-based auth
-        authType = req.session.userInfo.authType || 'basic';
+        authType = req.session.userInfo.authType || "basic";
         userName = req.session.userInfo.name;
         userEmail = req.session.userInfo.email;
-        customerId = req.session.userInfo.customerId || 'demo-user';
-        
-        if (authType === 'facebook' && customerId) {
+        customerId = req.session.userInfo.customerId || "demo-user";
+
+        if (authType === "facebook" && customerId) {
           isFacebookUser = true;
           try {
             customer = await getCustomerById(customerId);
           } catch (error) {
-            console.error('Error fetching Facebook customer:', error);
+            console.error("Error fetching Facebook customer:", error);
           }
         }
       } else {
-        console.log('❌ No valid authentication found in dashboard');
-        return res.redirect('/login');
+        console.log("❌ No valid authentication found in dashboard");
+        return res.redirect("/login");
       }
 
-      const hasQBAuth = !!(customer?.qb_access_token && customer?.qb_company_id);
+      const hasQBAuth = !!(
+        customer?.qb_access_token && customer?.qb_company_id
+      );
 
-      console.log('🔍 FINAL Dashboard auth status:', {
+      console.log("🔍 FINAL Dashboard auth status:", {
         userName,
         userEmail,
         customerId,
@@ -661,31 +690,37 @@ module.exports = (dependencies) => {
         isGoogleUser,
         isFacebookUser,
         hasQBAuth,
-        customerHasGoogleTokens: !!(customer?.google_access_token),
-        customerHasQBTokens: !!(customer?.qb_access_token)
+        customerHasGoogleTokens: !!customer?.google_access_token,
+        customerHasQBTokens: !!customer?.qb_access_token,
       });
 
-      isFacebookUser = authType === 'facebook';
-      isGoogleUser = authType === 'google';
+      isFacebookUser = authType === "facebook";
+      isGoogleUser = authType === "google";
 
       // Handle status messages
-      const urlParams = new URL(req.url, `http://${req.get('host')}`);
-      const qbSuccess = urlParams.searchParams.get('qb_success');
-      const qbError = urlParams.searchParams.get('qb_error');
+      const urlParams = new URL(req.url, `http://${req.get("host")}`);
+      const qbSuccess = urlParams.searchParams.get("qb_success");
+      const qbError = urlParams.searchParams.get("qb_error");
 
-      let qbStatusMessage = '';
+      let qbStatusMessage = "";
       if (qbSuccess) {
-        qbStatusMessage = '<div style="background: #d4edda; color: #155724; padding: 10px; margin: 10px 0; border-radius: 5px;">✅ QuickBooks connected successfully!</div>';
+        qbStatusMessage =
+          '<div style="background: #d4edda; color: #155724; padding: 10px; margin: 10px 0; border-radius: 5px;">✅ QuickBooks connected successfully!</div>';
       } else if (qbError) {
         const errorMessages = {
-          'auth_failed': 'QuickBooks authorization failed. Please try again.',
-          'session_lost': 'Session expired. Please try connecting QuickBooks again.',
-          'token_save_failed': 'Failed to save QuickBooks tokens. Please try again.'
+          auth_failed: "QuickBooks authorization failed. Please try again.",
+          session_lost:
+            "Session expired. Please try connecting QuickBooks again.",
+          token_save_failed:
+            "Failed to save QuickBooks tokens. Please try again.",
         };
-        qbStatusMessage = `<div style="background: #f8d7da; color: #721c24; padding: 10px; margin: 10px 0; border-radius: 5px;">❌ ${errorMessages[qbError] || 'Unknown error occurred'}</div>`;
+        qbStatusMessage = `<div style="background: #f8d7da; color: #721c24; padding: 10px; margin: 10px 0; border-radius: 5px;">❌ ${
+          errorMessages[qbError] || "Unknown error occurred"
+        }</div>`;
       }
-// Generate appropriate dashboard content based on auth type
-const integrationSection = isGoogleUser ? `
+      // Generate appropriate dashboard content based on auth type
+      const integrationSection = isGoogleUser
+        ? `
         <div class="integration-card google-card connected" style="border-left: 4px solid #4285f4; background: linear-gradient(135deg, #f8fbff 0%, #e8f0fe 100%); border: 1px solid #dadce0;">
           <h3 style="color: #202124; display: flex; align-items: center; gap: 8px;">
             <span style="background: linear-gradient(45deg, #4285f4, #34a853, #fbbc05, #ea4335); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; font-weight: 600;">🔗</span>
@@ -694,7 +729,7 @@ const integrationSection = isGoogleUser ? `
           </h3>
           <p style="color: #137333; font-weight: 500;">✅ Connected to Google Workspace</p>
           <p style="color: #5f6368;"><strong style="color: #202124;">Email:</strong> ${userEmail}</p>
-          <p style="color: #5f6368;"><strong style="color: #202124;">Services Available:</strong> Gmail, Google Sheets, Calendar, Drive, Contacts</p>
+          <p style="color: #5f6368;"><strong style="color: #202124;">Services Available:</strong> Gmail, Calendar, Drive (file access only), Contacts</p>
           <div style="margin-top: 15px;">
             <a href="/setup/spreadsheet" class="btn" style="background: #1a73e8; color: white; border: 1px solid #1a73e8; box-shadow: 0 1px 2px rgba(26,115,232,0.15); margin-right: 10px;">
               <span style="margin-right: 8px;">📊</span>
@@ -707,25 +742,39 @@ const integrationSection = isGoogleUser ? `
           </div>
         </div>
 
-        <div class="integration-card qb-card ${hasQBAuth ? 'connected' : ''}" style="border-left: 4px solid #0077c5; background: ${hasQBAuth ? 'linear-gradient(135deg, #f0fdf4 0%, #e6fffa 100%)' : 'linear-gradient(135deg, #fafbfc 0%, #f4f7fa 100%)'}; border: 1px solid #c1d6e8;">
+        <div class="integration-card qb-card ${
+          hasQBAuth ? "connected" : ""
+        }" style="border-left: 4px solid #0077c5; background: ${
+            hasQBAuth
+              ? "linear-gradient(135deg, #f0fdf4 0%, #e6fffa 100%)"
+              : "linear-gradient(135deg, #fafbfc 0%, #f4f7fa 100%)"
+          }; border: 1px solid #c1d6e8;">
           <h3 style="color: #1c2e4a; display: flex; align-items: center; gap: 8px;">
             <span style="color: #0077c5; font-weight: 600;">📊</span>
             QuickBooks Integration 
-            <span class="status-badge" style="background: ${hasQBAuth ? '#e6fffa; color: #047857; border: 1px solid #059669' : '#fef2f2; color: #dc2626; border: 1px solid #ef4444'};">
-              ${hasQBAuth ? 'Connected' : 'Not Connected'}
+            <span class="status-badge" style="background: ${
+              hasQBAuth
+                ? "#e6fffa; color: #047857; border: 1px solid #059669"
+                : "#fef2f2; color: #dc2626; border: 1px solid #ef4444"
+            };">
+              ${hasQBAuth ? "Connected" : "Not Connected"}
             </span>
           </h3>
           
-          ${hasQBAuth ? `
+          ${
+            hasQBAuth
+              ? `
             <p style="color: #047857; font-weight: 500;">✅ Connected to QuickBooks Company</p>
             <p style="color: #374151;"><strong style="color: #1c2e4a;">Company ID:</strong> <code style="background: #f3f4f6; padding: 4px 8px; border-radius: 4px; color: #6b7280; border: 1px solid #d1d5db;">${customer.qb_company_id}</code></p>
             <p style="color: #374151;"><strong style="color: #1c2e4a;">Environment:</strong> <code style="background: #f3f4f6; padding: 4px 8px; border-radius: 4px; color: #6b7280; border: 1px solid #d1d5db;">${QB_ENVIRONMENT}</code></p>
             <button onclick="disconnectQuickBooks()" class="btn" style="background: #dc2626; color: white; border: 1px solid #dc2626; box-shadow: 0 1px 2px rgba(220,38,38,0.15);">🔌 Disconnect QuickBooks</button>
-          ` : `
+          `
+              : `
             <p style="color: #374151;">Connect your QuickBooks account to enable AI workflows with your accounting data</p>
             <p style="color: #374151;"><strong style="color: #1c2e4a;">Permissions:</strong> Read/Write access to QuickBooks accounting data</p>
             <a href="/auth/quickbooks" class="btn" style="background: #0077c5; color: white; border: 1px solid #0077c5; box-shadow: 0 1px 2px rgba(0,119,197,0.15);">📊 Connect QuickBooks</a>
-          `}
+          `
+          }
         </div>
 
         <div class="integration-card facebook-card" style="border-left: 4px solid #1877f2; background: linear-gradient(135deg, #f7f9fc 0%, #eef4ff 100%); border: 1px solid #c2d6f0;">
@@ -742,7 +791,9 @@ const integrationSection = isGoogleUser ? `
             </a>
           </div>
         </div>
-      ` : isFacebookUser ?`
+      `
+        : isFacebookUser
+        ? `
         <div class="integration-card google-card">
           <h3>🔗 Google Workspace Integration 
             <span class="status-badge status-disconnected">Not Connected</span>
@@ -756,23 +807,29 @@ const integrationSection = isGoogleUser ? `
           </div>
         </div>
 
-        <div class="integration-card qb-card ${hasQBAuth ? 'connected' : ''}">
+        <div class="integration-card qb-card ${hasQBAuth ? "connected" : ""}">
           <h3>📊 QuickBooks Integration 
-            <span class="status-badge ${hasQBAuth ? 'status-connected' : 'status-disconnected'}">
-              ${hasQBAuth ? 'Connected' : 'Not Connected'}
+            <span class="status-badge ${
+              hasQBAuth ? "status-connected" : "status-disconnected"
+            }">
+              ${hasQBAuth ? "Connected" : "Not Connected"}
             </span>
           </h3>
           
-          ${hasQBAuth ? `
+          ${
+            hasQBAuth
+              ? `
             <p>✅ Connected to QuickBooks Company</p>
             <p><strong>Company ID:</strong> <code style="background: #f0f0f0; padding: 4px 8px; border-radius: 4px;">${customer.qb_company_id}</code></p>
             <p><strong>Environment:</strong> <code style="background: #f0f0f0; padding: 4px 8px; border-radius: 4px;">${QB_ENVIRONMENT}</code></p>
             <button onclick="disconnectQuickBooks()" class="btn btn-danger">🔌 Disconnect QuickBooks</button>
-          ` : `
+          `
+              : `
             <p>Connect your QuickBooks account to enable AI workflows with your accounting data</p>
             <p><strong>Permissions:</strong> Read/Write access to QuickBooks accounting data</p>
             <a href="/auth/quickbooks/standalone" class="btn btn-qb">📊 Connect QuickBooks</a>
-          `}
+          `
+          }
         </div>
 
         <div class="integration-card facebook-card connected">
@@ -789,7 +846,8 @@ const integrationSection = isGoogleUser ? `
             </button>
           </div>
         </div>
-      ` : `
+      `
+        : `
         <div class="integration-card">
           <h3>🎭 Demo Mode</h3>
           <p><strong>Account Type:</strong> Basic Authentication</p>
@@ -892,9 +950,11 @@ const integrationSection = isGoogleUser ? `
                 <button onclick="copyToClipboard('${customerId}')" class="btn btn-secondary" style="margin-left: 10px; padding: 6px 12px; font-size: 12px;">Copy</button>
               </p>
               <p><strong>Authentication:</strong> ${
-                isGoogleUser ? '🔗 Google OAuth' : 
-                isFacebookUser ? '📱 Facebook OAuth' : 
-                '🔑 Basic Auth'
+                isGoogleUser
+                  ? "🔗 Google OAuth"
+                  : isFacebookUser
+                  ? "📱 Facebook OAuth"
+                  : "🔑 Basic Auth"
               }</p>
             </div>
             
@@ -905,27 +965,16 @@ const integrationSection = isGoogleUser ? `
             <div class="integration-card">
               <h3>🔧 N8N Workflow Integration</h3>
               <p>Use your Customer ID in n8n workflows to access ${
-                isGoogleUser ? 'Google APIs and QuickBooks data' : 
-                isFacebookUser ? 'Facebook profile data and QuickBooks APIs' : 
-                'demo features'
+                isGoogleUser
+                  ? "Google APIs and QuickBooks data"
+                  : isFacebookUser
+                  ? "Facebook profile data and QuickBooks APIs"
+                  : "demo features"
               }:</p>
               <div style="background: white; padding: 15px; border-radius: 6px; margin: 10px 0;">
                 <strong>Customer ID:</strong> <span class="customer-id">${customerId}</span>
                 <button onclick="copyToClipboard('${customerId}')" class="btn btn-primary" style="margin-left: 10px;">Copy for N8N</button>
               </div>
-              
-              ${(isGoogleUser || isFacebookUser) ? `
-              <h4>API Endpoints:</h4>
-              <ul style="font-family: monospace; font-size: 13px; background: #f8f9fa; padding: 15px; border-radius: 6px;">
-                ${isGoogleUser ? `<li><strong>Google:</strong> GET /api/customer/${customerId}/google/tokens</li>` : ''}
-                ${isFacebookUser ? `<li><strong>Facebook:</strong> GET /api/customer/${customerId}/facebook/status</li>` : ''}
-                <li><strong>QuickBooks Status:</strong> GET /api/customer/${customerId}/quickbooks/status</li>
-                <li><strong>QuickBooks Tokens:</strong> GET /api/customer/${customerId}/quickbooks/tokens</li>
-                <li><strong>All Integrations:</strong> GET /api/customer/${customerId}/integrations</li>
-              </ul>
-              ` : `
-              <p><em>Full API access available with Google or Facebook authentication.</em></p>
-              `}
             </div>
             
             <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #dee2e6; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap;">
@@ -1035,10 +1084,9 @@ const integrationSection = isGoogleUser ? `
         </body>
         </html>
       `);
-
     } catch (error) {
-      console.error('❌ Dashboard error:', error);
-      res.status(500).send('Error loading dashboard: ' + error.message);
+      console.error("❌ Dashboard error:", error);
+      res.status(500).send("Error loading dashboard: " + error.message);
     }
   });
 
