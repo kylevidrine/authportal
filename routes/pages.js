@@ -947,7 +947,7 @@ module.exports = (dependencies) => {
             <div class="auth-info">
               <p><strong>Email:</strong> ${userEmail}</p>
               <p><strong>Customer ID:</strong> <span class="customer-id">${customerId}</span>
-                <button onclick="copyToClipboard('${customerId}')" class="btn btn-secondary" style="margin-left: 10px; padding: 6px 12px; font-size: 12px;">Copy</button>
+                <button onclick="copyToClipboard('${customerId}')" class="btn btn-primary" style="margin-left: 10px;">Copy for N8N</button>
               </p>
               <p><strong>Authentication:</strong> ${
                 isGoogleUser
@@ -961,21 +961,6 @@ module.exports = (dependencies) => {
             ${qbStatusMessage}
             
             ${integrationSection}
-            
-            <div class="integration-card">
-              <h3>🔧 N8N Workflow Integration</h3>
-              <p>Use your Customer ID in n8n workflows to access ${
-                isGoogleUser
-                  ? "Google APIs and QuickBooks data"
-                  : isFacebookUser
-                  ? "Facebook profile data and QuickBooks APIs"
-                  : "demo features"
-              }:</p>
-              <div style="background: white; padding: 15px; border-radius: 6px; margin: 10px 0;">
-                <strong>Customer ID:</strong> <span class="customer-id">${customerId}</span>
-                <button onclick="copyToClipboard('${customerId}')" class="btn btn-primary" style="margin-left: 10px;">Copy for N8N</button>
-              </div>
-            </div>
             
             <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #dee2e6; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap;">
               <div>
