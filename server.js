@@ -35,6 +35,7 @@ const telegramRouter = require("./routes/telegram")(db);
 const REQUIRED_SCOPES = [
   "profile",
   "email",
+  "https://www.googleapis.com/auth/drive.file",
   "https://www.googleapis.com/auth/contacts",
   "https://www.googleapis.com/auth/calendar",
 ];
