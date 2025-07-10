@@ -1,146 +1,82 @@
+// routes/pages.js
 const express = require("express");
+const router = express.Router();
 
-module.exports = function (dependencies) {
+module.exports = (dependencies) => {
   const {
     getAllCustomers,
     getCustomerById,
     validateToken,
     validateQBToken,
     QB_ENVIRONMENT,
+    requireAuth,
   } = dependencies;
 
-  const router = express.Router();
-
   // =============================================================================
-  // MAIN PORTAL PAGE LOGIC (ALL LOGIC AT TOP)
+  // MAIN WEB PAGES
   // =============================================================================
-  router.get("/", async (req, res) => {
-    // 1. AUTHENTICATION CHECK
-    if (!req.user) {
-      return res.redirect("/login");
-    }
 
-    // 2. GET USER DATA
-    const userEmail = req.user.email || req.user.emails?.[0]?.value;
-    const userName = req.user.name || req.user.displayName || userEmail;
-    const authType = req.user.provider || "basic";
-    const isGoogleUser = authType === "google";
-    const isFacebookUser = authType === "facebook";
+  // Main portal page
+  router.get("/", requireAuth, async (req, res) => {
+    try {
+      const authType = req.user
+        ? "google"
+        : req.session?.userInfo?.authType || "basic";
+      const userName = req.user?.name || req.session?.userInfo?.name || "User";
 
-    // 3. GET CUSTOMER DATA
-    let customer = null;
-    let hasQBAuth = false;
-    let customerId = null;
+      // Determine auth status properly
+      const isFacebookUser = authType === "facebook";
+      const isGoogleUser =
+        authType === "google" && req.user && req.user.google_access_token;
 
-    if (isGoogleUser) {
-      customer = req.user;
-      customerId = customer.id;
-      hasQBAuth = !!(customer.qb_access_token && customer.qb_company_id);
-    } else if (isFacebookUser) {
-      try {
-        const existingCustomers = await getAllCustomers();
-        customer = existingCustomers.find((c) => c.email === userEmail);
-        customerId = customer?.id;
-        hasQBAuth = !!(customer?.qb_access_token && customer?.qb_company_id);
-      } catch (error) {
-        console.error("Error fetching Facebook customer:", error);
+      // Get customer data to check QuickBooks status
+      let customer = null;
+      let hasQBAuth = false;
+
+      if (req.isAuthenticated?.() && req.user) {
+        // Google OAuth user
+        try {
+          customer = await getCustomerById(req.user.id);
+          hasQBAuth = !!(customer?.qb_access_token && customer?.qb_company_id);
+        } catch (error) {
+          console.error("Error fetching Google customer:", error);
+        }
+      } else if (req.session?.authenticated && req.session?.userInfo) {
+        // Basic auth or Facebook user
+        const userEmail = req.session.userInfo.email;
+
+        if (authType === "facebook" && req.session.userInfo.customerId) {
+          try {
+            customer = await getCustomerById(req.session.userInfo.customerId);
+            hasQBAuth = !!(
+              customer?.qb_access_token && customer?.qb_company_id
+            );
+          } catch (error) {
+            console.error("Error fetching Facebook customer:", error);
+          }
+        } else {
+          // Check if basic auth user has a customer record
+          try {
+            const existingCustomers = await getAllCustomers();
+            customer = existingCustomers.find((c) => c.email === userEmail);
+            hasQBAuth = !!(
+              customer?.qb_access_token && customer?.qb_company_id
+            );
+          } catch (error) {
+            console.error("Error fetching basic auth customer:", error);
+          }
+        }
       }
-    } else {
-      try {
-        const existingCustomers = await getAllCustomers();
-        customer = existingCustomers.find((c) => c.email === userEmail);
-        customerId = customer?.id;
-        hasQBAuth = !!(customer?.qb_access_token && customer?.qb_company_id);
-      } catch (error) {
-        console.error("Error fetching basic auth customer:", error);
-      }
-    }
 
-    // 4. CHECK SMS OPT-IN STATUS
-    const hasSmsOptIn = customer?.sms_opt_in === 1;
+      console.log("Main page auth status:", {
+        authType,
+        isGoogleUser,
+        isFacebookUser,
+        hasQBAuth,
+        customerId: customer?.id,
+      });
 
-    console.log("Main page auth status:", {
-      authType,
-      isGoogleUser,
-      isFacebookUser,
-      hasQBAuth,
-      hasSmsOptIn,
-      customerId: customer?.id,
-    });
-
-    // =============================================================================
-    // TEMPLATE VARIABLES (MIDDLE SECTION)
-    // =============================================================================
-    const templateVars = {
-      userName,
-      userEmail,
-      authType: isGoogleUser
-        ? "Google OAuth"
-        : isFacebookUser
-        ? "Facebook OAuth"
-        : "Basic Auth",
-      customerId,
-
-      // Card status variables
-      isGoogleConnected: isGoogleUser,
-      isQBConnected: hasQBAuth,
-      isFacebookConnected: isFacebookUser,
-      isInstagramConnected: false, // Placeholder for future
-      isSmsOptedIn: hasSmsOptIn,
-
-      // Button configurations
-      googleButton: isGoogleUser
-        ? `<p style="color: #28a745; font-weight: bold; margin-bottom: 15px;">✅ Connected</p>
-           <button onclick="disconnectGoogle()" class="btn-modern btn-disconnect">
-             <span>🔌 Disconnect Google</span>
-           </button>`
-        : `<a href="/auth/google" class="btn-modern btn-connect">
-             <div class="logo-icon logo-google"></div>
-             <span>Connect with Google</span>
-           </a>`,
-
-      qbButton: hasQBAuth
-        ? `<p style="color: #28a745; font-weight: bold; margin-bottom: 15px;">✅ Connected</p>
-           <button onclick="disconnectQB()" class="btn-modern btn-disconnect">
-             <span>🔌 Disconnect QuickBooks</span>
-           </button>`
-        : `<a href="/auth/quickbooks/standalone" class="btn-modern btn-connect">
-             <div class="logo-icon logo-quickbooks"></div>
-             <span>Connect QuickBooks</span>
-           </a>`,
-
-      facebookButton: isFacebookUser
-        ? `<p style="color: #28a745; font-weight: bold; margin-bottom: 15px;">✅ Connected</p>
-           <button onclick="disconnectFacebook()" class="btn-modern btn-disconnect">
-             <span>🔌 Disconnect Facebook</span>
-           </button>`
-        : `<a href="/auth/facebook" class="btn-modern btn-connect">
-             <div class="logo-icon logo-facebook"></div>
-             <span>Connect with Facebook</span>
-           </a>`,
-
-      smsButton: hasSmsOptIn
-        ? `<p style="color: #28a745; font-weight: bold; margin-bottom: 15px;">✅ SMS Notifications Enabled</p>
-           <button onclick="toggleSmsOptIn(false)" class="btn-modern btn-disconnect">
-             <span>🔕 Disable SMS</span>
-           </button>`
-        : `<form id="smsOptInForm" style="margin: 0;">
-             <div style="background: #f0f8ff; padding: 15px; border-radius: 6px; margin-bottom: 15px; font-size: 13px; line-height: 1.4;">
-               <label style="display: flex; align-items: flex-start; cursor: pointer;">
-                 <input type="checkbox" id="smsConsent" required style="margin-right: 8px; margin-top: 2px;">
-                 <span>I agree to receive text messages from Robo South LA AI Solutions regarding workflow updates and account notifications. Message and data rates may apply. Reply STOP to opt out anytime.</span>
-               </label>
-             </div>
-             <button type="submit" class="btn-modern btn-connect" style="width: 100%;">
-               <span>📱 Enable SMS Notifications</span>
-             </button>
-           </form>`,
-    };
-
-    // =============================================================================
-    // HTML TEMPLATE (CLEAN TEMPLATE AT BOTTOM)
-    // =============================================================================
-    res.send(`
+      res.send(`
         <html>
         <head>
           <title>AI Workflow Portal</title>
@@ -193,29 +129,68 @@ module.exports = function (dependencies) {
             .btn-modern {
               display: flex;
               align-items: center;
-              justify-content: center;
-              padding: 12px 20px;
-              background: #4285f4;
-              color: white;
+              gap: 12px;
+              padding: 16px 24px;
               border: none;
-              border-radius: 8px;
-              text-decoration: none;
-              font-weight: 500;
-              font-size: 14px;
-              transition: all 0.3s ease;
+              border-radius: 12px;
+              font-size: 16px;
+              font-weight: 600;
               cursor: pointer;
+              transition: all 0.3s ease;
+              text-decoration: none;
+              min-width: 200px;
+              justify-content: flex-start;
               width: 100%;
               box-sizing: border-box;
             }
-            .btn-connect { background: #4285f4; }
-            .btn-connect:hover { background: #3367d6; transform: translateY(-1px); }
-            .btn-disconnect { background: #dc3545; }
-            .btn-disconnect:hover { background: #c82333; transform: translateY(-1px); }
-            
+
+            .btn-connect {
+              background: white;
+              color: #757575;
+              border: 2px solid #dadce0;
+            }
+            .btn-connect:hover {
+              box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+              transform: translateY(-2px);
+            }
+
+            .btn-disconnect {
+              background: #dc3545;
+              color: white;
+              border: 2px solid #dc3545;
+            }
+            .btn-disconnect:hover {
+              background: #c82333;
+              transform: translateY(-2px);
+              box-shadow: 0 8px 25px rgba(220,53,69,0.3);
+            }
+
+            .btn-facebook-connect {
+              background: #1877f2;
+              color: white;
+              border: 2px solid #1877f2;
+            }
+            .btn-facebook-connect:hover {
+              background: #166fe5;
+              transform: translateY(-2px);
+              box-shadow: 0 8px 25px rgba(24,119,242,0.3);
+            }
+
+            .btn-qb-connect {
+              background: #0077c5;
+              color: white;
+              border: 2px solid #0077c5;
+            }
+            .btn-qb-connect:hover {
+              background: #005a94;
+              transform: translateY(-2px);
+              box-shadow: 0 8px 25px rgba(0,119,197,0.3);
+            }
+
             .btn-dashboard {
               background: #28a745;
               color: white;
-              padding: 15px 32px;
+              padding: 18px 36px;
               font-size: 18px;
               font-weight: 600;
               border-radius: 8px;
@@ -255,11 +230,11 @@ module.exports = function (dependencies) {
               background-size: contain;
             }
             
-            /* Grid Layout - Now 2x3 to accommodate SMS card */
+            /* Grid Layout */
             .auth-options {
               display: grid;
               grid-template-columns: 1fr 1fr;
-              grid-template-rows: 1fr 1fr 1fr;
+              grid-template-rows: 1fr 1fr;
               gap: 20px;
               margin: 30px 0;
               align-items: stretch;
@@ -282,8 +257,6 @@ module.exports = function (dependencies) {
             .auth-card.google { border-left: 4px solid #4285f4; }
             .auth-card.facebook { border-left: 4px solid #1877f2; }
             .auth-card.quickbooks { border-left: 4px solid #0077C5; }
-            .auth-card.sms { border-left: 4px solid #28a745; }
-            .auth-card.instagram { border-left: 4px solid #E4405F; }
             .auth-card.connected { 
               border-left-color: #28a745;
               background: #f8fff8;
@@ -333,9 +306,13 @@ module.exports = function (dependencies) {
           <div class="container">
             <div class="user-bar">
               <div>
-                <strong>👋 Welcome back, ${templateVars.userName}!</strong> 
+                <strong>👋 Welcome back, ${userName}!</strong> 
                 <span style="font-size: 12px; color: #666;">(${
-                  templateVars.authType
+                  isGoogleUser
+                    ? "Google OAuth"
+                    : isFacebookUser
+                    ? "Facebook OAuth"
+                    : "Basic Auth"
                 })</span>
               </div>
               <div>
@@ -355,9 +332,7 @@ module.exports = function (dependencies) {
             
             <div class="auth-options">
               <!-- Google Workspace Card -->
-              <div class="auth-card google ${
-                templateVars.isGoogleConnected ? "connected" : ""
-              }">
+              <div class="auth-card google ${isGoogleUser ? "connected" : ""}">
                 <h3>🔗 Google Workspace</h3>
                 <div class="feature-grid">
                   <div class="feature-item">
@@ -385,23 +360,27 @@ module.exports = function (dependencies) {
                     <span>AI Workflows</span>
                   </div>
                 </div>
-                ${templateVars.googleButton}
+                ${
+                  isGoogleUser
+                    ? `
+                  <p style="color: #28a745; font-weight: bold; margin-bottom: 15px;">✅ Connected</p>
+                  <button onclick="disconnectGoogle()" class="btn-modern btn-disconnect">
+                    <span>🔌 Disconnect Google</span>
+                  </button>
+                `
+                    : `
+                  <a href="/auth/google" class="btn-modern btn-connect">
+                    <div class="logo-icon logo-google"></div>
+                    <span>Connect with Google</span>
+                  </a>
+                `
+                }
               </div>
 
               <!-- QuickBooks Card -->
-              <div class="auth-card quickbooks ${
-                templateVars.isQBConnected ? "connected" : ""
-              }">
-                <h3>💼 QuickBooks</h3>
+              <div class="auth-card quickbooks ${hasQBAuth ? "connected" : ""}">
+                <h3>📊 QuickBooks Online</h3>
                 <div class="feature-grid">
-                  <div class="feature-item">
-                    <span class="feature-icon">💰</span>
-                    <span>Financial Data</span>
-                  </div>
-                  <div class="feature-item">
-                    <span class="feature-icon">📊</span>
-                    <span>Reports</span>
-                  </div>
                   <div class="feature-item">
                     <span class="feature-icon">🧾</span>
                     <span>Invoices</span>
@@ -411,62 +390,95 @@ module.exports = function (dependencies) {
                     <span>Customers</span>
                   </div>
                   <div class="feature-item">
+                    <span class="feature-icon">📦</span>
+                    <span>Items</span>
+                  </div>
+                  <div class="feature-item">
+                    <span class="feature-icon">💰</span>
+                    <span>Reports</span>
+                  </div>
+                  <div class="feature-item">
                     <span class="feature-icon">📈</span>
-                    <span>Analytics</span>
+                    <span>Sales Data</span>
                   </div>
                   <div class="feature-item">
                     <span class="feature-icon">🤖</span>
-                    <span>AI Workflows</span>
+                    <span>AI Automation</span>
                   </div>
                 </div>
-                ${templateVars.qbButton}
+                ${
+                  hasQBAuth
+                    ? `
+                  <p style="color: #28a745; font-weight: bold; margin-bottom: 15px;">✅ Connected</p>
+                  <button onclick="disconnectQuickBooks()" class="btn-modern btn-disconnect">
+                    <span>🔌 Disconnect QuickBooks</span>
+                  </button>
+                `
+                    : `
+                  <a href="/auth/quickbooks/standalone" class="btn-modern btn-qb-connect">
+                    <div class="logo-icon logo-quickbooks"></div>
+                    <span>Connect QuickBooks</span>
+                  </a>
+                `
+                }
               </div>
 
               <!-- Facebook Card -->
               <div class="auth-card facebook ${
-                templateVars.isFacebookConnected ? "connected" : ""
+                isFacebookUser ? "connected" : ""
               }">
-                <h3>📘 Facebook</h3>
+                <h3>📱 Facebook Social</h3>
                 <div class="feature-grid">
                   <div class="feature-item">
                     <span class="feature-icon">👤</span>
-                    <span>Profile</span>
+                    <span>Profile Access</span>
                   </div>
                   <div class="feature-item">
-                    <span class="feature-icon">📝</span>
-                    <span>Posts</span>
+                    <span class="feature-icon">📧</span>
+                    <span>Email</span>
                   </div>
                   <div class="feature-item">
-                    <span class="feature-icon">📊</span>
-                    <span>Page Insights</span>
+                    <span class="feature-icon">📸</span>
+                    <span>Profile Photo</span>
                   </div>
                   <div class="feature-item">
-                    <span class="feature-icon">💬</span>
-                    <span>Messages</span>
+                    <span class="feature-icon">🔗</span>
+                    <span>Social Login</span>
+                  </div>
+                  <div class="feature-item">
+                    <span class="feature-icon">🌐</span>
+                    <span>Social Identity</span>
                   </div>
                   <div class="feature-item">
                     <span class="feature-icon">📱</span>
-                    <span>Social Media</span>
-                  </div>
-                  <div class="feature-item">
-                    <span class="feature-icon">🤖</span>
-                    <span>AI Workflows</span>
+                    <span>Mobile Auth</span>
                   </div>
                 </div>
-                ${templateVars.facebookButton}
+                ${
+                  isFacebookUser
+                    ? `
+                  <p style="color: #28a745; font-weight: bold; margin-bottom: 15px;">✅ Connected</p>
+                  <button onclick="disconnectFacebook()" class="btn-modern btn-disconnect">
+                    <span>🔌 Disconnect Facebook</span>
+                  </button>
+                `
+                    : `
+                  <span class="btn-modern" style="background: #6c757d; color: white; opacity: 0.5; cursor: not-allowed;">
+                    <div class="logo-icon logo-facebook"></div>
+                    <span>Coming Soon</span>
+                  </a>
+                `
+                }
               </div>
 
-              <!-- Instagram Card -->
-              <div class="auth-card instagram">
-                <h3>📷 Instagram</h3>
+              <!-- Instagram Placeholder -->
+              <div class="auth-card instagram" style="opacity: 0.7; position: relative;">
+                <div style="position: absolute; top: 10px; right: 10px; background: #6c757d; color: white; padding: 4px 8px; border-radius: 12px; font-size: 12px; font-weight: 600;">Coming Soon</div>
+                <h3>📷 Instagram Business</h3>
                 <div class="feature-grid">
                   <div class="feature-item">
                     <span class="feature-icon">📸</span>
-                    <span>Photos</span>
-                  </div>
-                  <div class="feature-item">
-                    <span class="feature-icon">🎥</span>
-                    <span>Stories</span>
+                    <span>Media Access</span>
                   </div>
                   <div class="feature-item">
                     <span class="feature-icon">📊</span>
@@ -474,155 +486,593 @@ module.exports = function (dependencies) {
                   </div>
                   <div class="feature-item">
                     <span class="feature-icon">💬</span>
-                    <span>DMs</span>
+                    <span>Comments</span>
                   </div>
                   <div class="feature-item">
                     <span class="feature-icon">📈</span>
-                    <span>Growth</span>
+                    <span>Insights</span>
                   </div>
                   <div class="feature-item">
                     <span class="feature-icon">🤖</span>
-                    <span>AI Workflows</span>
+                    <span>Auto Posting</span>
+                  </div>
+                  <div class="feature-item">
+                    <span class="feature-icon">🎯</span>
+                    <span>Engagement</span>
                   </div>
                 </div>
-                <button class="btn-modern" style="background: #6c757d;">
-                  <span>🚧 Coming Soon</span>
-                </button>
-              </div>
-
-              <!-- SMS Notifications Card (NEW - Below Facebook) -->
-              <div class="auth-card sms ${
-                templateVars.isSmsOptedIn ? "connected" : ""
-              }">
-                <h3>📱 SMS Notifications</h3>
-                <div class="feature-grid">
-                  <div class="feature-item">
-                    <span class="feature-icon">📲</span>
-                    <span>Workflow Updates</span>
-                  </div>
-                  <div class="feature-item">
-                    <span class="feature-icon">🔔</span>
-                    <span>Alerts</span>
-                  </div>
-                  <div class="feature-item">
-                    <span class="feature-icon">✅</span>
-                    <span>Status Reports</span>
-                  </div>
-                  <div class="feature-item">
-                    <span class="feature-icon">⚡</span>
-                    <span>Real-time</span>
-                  </div>
-                  <div class="feature-item">
-                    <span class="feature-icon">🛡️</span>
-                    <span>Secure</span>
-                  </div>
-                  <div class="feature-item">
-                    <span class="feature-icon">🤖</span>
-                    <span>AI Powered</span>
-                  </div>
+                <div class="btn-modern" style="background: #6c757d; color: white; opacity: 0.5; cursor: not-allowed;">
+                  <span>Coming Soon</span>
                 </div>
-                ${templateVars.smsButton}
               </div>
             </div>
-
-            <!-- Dashboard Button -->
-            <a href="/dashboard" class="btn-dashboard">
-              🚀 Go to Dashboard
-            </a>
-
-            <!-- Admin Link (if authorized) -->
-            <div style="margin-top: 20px;">
-              <a href="/admin" style="color: #6c757d; text-decoration: none; font-size: 14px;">
-                🔧 Admin Panel
+            
+            <div style="text-align: center; margin: 30px 0;">
+              <a href="/dashboard" class="btn-dashboard">
+                Go to Dashboard →
               </a>
             </div>
           </div>
-
+          
           <script>
-            // =============================================================================
-            // JAVASCRIPT FUNCTIONS
-            // =============================================================================
-            
-            // SMS Opt-in form handler
-            document.getElementById('smsOptInForm')?.addEventListener('submit', async function(e) {
-              e.preventDefault();
-              
-              const consent = document.getElementById('smsConsent').checked;
-              if (!consent) {
-                alert('Please check the consent box to enable SMS notifications.');
+            async function disconnectGoogle() {
+              if (!confirm('Are you sure you want to disconnect from Google? This will remove access to your Google services.')) {
                 return;
               }
-
+              
               try {
-                const response = await fetch('/api/sms/opt-in', {
+                const response = await fetch('/auth/google/disconnect', {
                   method: 'POST',
                   headers: {
-                    'Content-Type': 'application/json',
-                  },
-                  body: JSON.stringify({
-                    customerId: '${templateVars.customerId}',
-                    optIn: true
-                  })
+                    'Content-Type': 'application/json'
+                  }
                 });
-
+                
                 if (response.ok) {
-                  location.reload(); // Refresh to show updated status
-                } else {
-                  const error = await response.json();
-                  alert('Error: ' + (error.message || 'Failed to update SMS preferences'));
-                }
-              } catch (error) {
-                alert('Error: ' + error.message);
-              }
-            });
-
-            // Toggle SMS opt-in status
-            function toggleSmsOptIn(optIn) {
-              fetch('/api/sms/opt-in', {
-                method: 'POST',
-                headers: {
-                  'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                  customerId: '${templateVars.customerId}',
-                  optIn: optIn
-                })
-              })
-              .then(response => response.json())
-              .then(data => {
-                if (data.success) {
+                  alert('Google disconnected successfully!');
                   location.reload();
                 } else {
-                  alert('Error: ' + (data.message || 'Failed to update SMS preferences'));
+                  const error = await response.json();
+                  alert('Failed to disconnect Google: ' + error.error);
                 }
-              })
-              .catch(error => {
-                alert('Error: ' + error.message);
-              });
-            }
-
-            // Disconnect functions (existing functionality)
-            function disconnectGoogle() {
-              if (confirm('Are you sure you want to disconnect Google Workspace?')) {
-                window.location.href = '/auth/google/disconnect';
+              } catch (error) {
+                alert('Error disconnecting Google: ' + error.message);
               }
             }
 
-            function disconnectQB() {
-              if (confirm('Are you sure you want to disconnect QuickBooks?')) {
-                window.location.href = '/auth/quickbooks/disconnect';
+            async function disconnectQuickBooks() {
+              if (!confirm('Are you sure you want to disconnect QuickBooks? This will remove access to your accounting data.')) {
+                return;
+              }
+              
+              try {
+                const response = await fetch('/auth/quickbooks/disconnect', {
+                  method: 'POST',
+                  headers: {
+                    'Content-Type': 'application/json'
+                  }
+                });
+                
+                if (response.ok) {
+                  alert('QuickBooks disconnected successfully!');
+                  location.reload();
+                } else {
+                  const error = await response.json();
+                  alert('Failed to disconnect QuickBooks: ' + error.error);
+                }
+              } catch (error) {
+                alert('Error disconnecting QuickBooks: ' + error.message);
               }
             }
 
-            function disconnectFacebook() {
-              if (confirm('Are you sure you want to disconnect Facebook?')) {
-                window.location.href = '/auth/facebook/disconnect';
+            async function disconnectFacebook() {
+              if (!confirm('Are you sure you want to disconnect Facebook? You will be logged out.')) {
+                return;
+              }
+              
+              try {
+                const response = await fetch('/auth/facebook/disconnect', {
+                  method: 'POST',
+                  headers: {
+                    'Content-Type': 'application/json'
+                  }
+                });
+                
+                if (response.ok) {
+                  alert('Facebook disconnected successfully!');
+                  window.location.href = '/login';
+                } else {
+                  const error = await response.json();
+                  alert('Failed to disconnect Facebook: ' + error.error);
+                }
+              } catch (error) {
+                alert('Error disconnecting Facebook: ' + error.message);
               }
             }
           </script>
         </body>
         </html>
-    `);
+      `);
+    } catch (error) {
+      console.error("❌ Main page error:", error);
+      res.status(500).send("Error loading main page: " + error.message);
+    }
+  });
+
+  // Dashboard page
+  router.get("/dashboard", requireAuth, async (req, res) => {
+    try {
+      console.log("📊 Dashboard access check:", {
+        sessionAuth: req.session?.authenticated,
+        passportAuth: req.isAuthenticated?.(),
+        hasUser: !!req.user,
+        userInfo: req.session?.userInfo,
+      });
+
+      // Determine auth type and get user info
+      let userName,
+        userEmail,
+        customerId,
+        customer = null;
+      let authType = "unknown";
+      let isGoogleUser = false;
+      let isFacebookUser = false;
+
+      if (req.isAuthenticated?.() && req.user) {
+        // Authenticated via Passport - but check if they ACTUALLY have active tokens
+        userName = req.user.name;
+        userEmail = req.user.email;
+        customerId = req.user.id;
+
+        try {
+          customer = await getCustomerById(req.user.id);
+          console.log("🔍 Customer from DB:", {
+            id: customer?.id,
+            email: customer?.email,
+            hasGoogleTokens: !!customer?.google_access_token,
+            hasQBTokens: !!customer?.qb_access_token,
+          });
+
+          // The KEY FIX: Check database tokens, not just session
+          const hasActiveGoogleTokens = !!(
+            customer?.google_access_token && customer?.google_refresh_token
+          );
+
+          if (hasActiveGoogleTokens) {
+            authType = "google";
+            isGoogleUser = true;
+            console.log("✅ Active Google user with valid tokens");
+          } else if (customer?.id?.startsWith("fb_")) {
+            authType = "facebook";
+            isFacebookUser = true;
+            console.log("✅ Facebook user");
+          } else {
+            // User authenticated via Google but tokens were removed - treat as basic user
+            authType = "disconnected_google";
+            isGoogleUser = false;
+            console.log(
+              "⚠️ User authenticated but no Google tokens - treating as disconnected"
+            );
+          }
+        } catch (error) {
+          console.error("Error fetching customer:", error);
+          authType = "passport_user";
+        }
+      } else if (req.session?.authenticated && req.session?.userInfo) {
+        // Basic auth or session-based auth
+        authType = req.session.userInfo.authType || "basic";
+        userName = req.session.userInfo.name;
+        userEmail = req.session.userInfo.email;
+        customerId = req.session.userInfo.customerId || "demo-user";
+
+        if (authType === "facebook" && customerId) {
+          isFacebookUser = true;
+          try {
+            customer = await getCustomerById(customerId);
+          } catch (error) {
+            console.error("Error fetching Facebook customer:", error);
+          }
+        }
+      } else {
+        console.log("❌ No valid authentication found in dashboard");
+        return res.redirect("/login");
+      }
+
+      const hasQBAuth = !!(
+        customer?.qb_access_token && customer?.qb_company_id
+      );
+
+      console.log("🔍 FINAL Dashboard auth status:", {
+        userName,
+        userEmail,
+        customerId,
+        authType,
+        isGoogleUser,
+        isFacebookUser,
+        hasQBAuth,
+        customerHasGoogleTokens: !!customer?.google_access_token,
+        customerHasQBTokens: !!customer?.qb_access_token,
+      });
+
+      isFacebookUser = authType === "facebook";
+      isGoogleUser = authType === "google";
+
+      // Handle status messages
+      const urlParams = new URL(req.url, `http://${req.get("host")}`);
+      const qbSuccess = urlParams.searchParams.get("qb_success");
+      const qbError = urlParams.searchParams.get("qb_error");
+
+      let qbStatusMessage = "";
+      if (qbSuccess) {
+        qbStatusMessage =
+          '<div style="background: #d4edda; color: #155724; padding: 10px; margin: 10px 0; border-radius: 5px;">✅ QuickBooks connected successfully!</div>';
+      } else if (qbError) {
+        const errorMessages = {
+          auth_failed: "QuickBooks authorization failed. Please try again.",
+          session_lost:
+            "Session expired. Please try connecting QuickBooks again.",
+          token_save_failed:
+            "Failed to save QuickBooks tokens. Please try again.",
+        };
+        qbStatusMessage = `<div style="background: #f8d7da; color: #721c24; padding: 10px; margin: 10px 0; border-radius: 5px;">❌ ${
+          errorMessages[qbError] || "Unknown error occurred"
+        }</div>`;
+      }
+      // Generate appropriate dashboard content based on auth type
+      const integrationSection = isGoogleUser
+        ? `
+        <div class="integration-card google-card connected" style="border-left: 4px solid #4285f4; background: linear-gradient(135deg, #f8fbff 0%, #e8f0fe 100%); border: 1px solid #dadce0;">
+          <h3 style="color: #202124; display: flex; align-items: center; gap: 8px;">
+            <span style="background: linear-gradient(45deg, #4285f4, #34a853, #fbbc05, #ea4335); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; font-weight: 600;">🔗</span>
+            Google Workspace Integration 
+            <span class="status-badge" style="background: #e8f5e9; color: #137333; border: 1px solid #34a853;">Connected</span>
+          </h3>
+          <p style="color: #137333; font-weight: 500;">✅ Connected to Google Workspace</p>
+          <p style="color: #5f6368;"><strong style="color: #202124;">Email:</strong> ${userEmail}</p>
+          <p style="color: #5f6368;"><strong style="color: #202124;">Services Available:</strong> Gmail, Calendar, Drive (file access only), Contacts</p>
+          <div style="margin-top: 15px;">
+            <a href="/setup/spreadsheet" class="btn" style="background: #1a73e8; color: white; border: 1px solid #1a73e8; box-shadow: 0 1px 2px rgba(26,115,232,0.15); margin-right: 10px;">
+              <span style="margin-right: 8px;">📊</span>
+              Manage Spreadsheets
+            </a>
+            <button onclick="disconnectGoogle()" class="btn" style="background: #ea4335; color: white; border: 1px solid #ea4335; box-shadow: 0 1px 2px rgba(234,67,53,0.15);">
+              <span style="margin-right: 8px;">🔌</span>
+              Disconnect Google
+            </button>
+          </div>
+        </div>
+
+        <div class="integration-card qb-card ${
+          hasQBAuth ? "connected" : ""
+        }" style="border-left: 4px solid #0077c5; background: ${
+            hasQBAuth
+              ? "linear-gradient(135deg, #f0fdf4 0%, #e6fffa 100%)"
+              : "linear-gradient(135deg, #fafbfc 0%, #f4f7fa 100%)"
+          }; border: 1px solid #c1d6e8;">
+          <h3 style="color: #1c2e4a; display: flex; align-items: center; gap: 8px;">
+            <span style="color: #0077c5; font-weight: 600;">📊</span>
+            QuickBooks Integration 
+            <span class="status-badge" style="background: ${
+              hasQBAuth
+                ? "#e6fffa; color: #047857; border: 1px solid #059669"
+                : "#fef2f2; color: #dc2626; border: 1px solid #ef4444"
+            };">
+              ${hasQBAuth ? "Connected" : "Not Connected"}
+            </span>
+          </h3>
+          
+          ${
+            hasQBAuth
+              ? `
+            <p style="color: #047857; font-weight: 500;">✅ Connected to QuickBooks Company</p>
+            <p style="color: #374151;"><strong style="color: #1c2e4a;">Company ID:</strong> <code style="background: #f3f4f6; padding: 4px 8px; border-radius: 4px; color: #6b7280; border: 1px solid #d1d5db;">${customer.qb_company_id}</code></p>
+            <p style="color: #374151;"><strong style="color: #1c2e4a;">Environment:</strong> <code style="background: #f3f4f6; padding: 4px 8px; border-radius: 4px; color: #6b7280; border: 1px solid #d1d5db;">${QB_ENVIRONMENT}</code></p>
+            <button onclick="disconnectQuickBooks()" class="btn" style="background: #dc2626; color: white; border: 1px solid #dc2626; box-shadow: 0 1px 2px rgba(220,38,38,0.15);">🔌 Disconnect QuickBooks</button>
+          `
+              : `
+            <p style="color: #374151;">Connect your QuickBooks account to enable AI workflows with your accounting data</p>
+            <p style="color: #374151;"><strong style="color: #1c2e4a;">Permissions:</strong> Read/Write access to QuickBooks accounting data</p>
+            <a href="/auth/quickbooks" class="btn" style="background: #0077c5; color: white; border: 1px solid #0077c5; box-shadow: 0 1px 2px rgba(0,119,197,0.15);">📊 Connect QuickBooks</a>
+          `
+          }
+        </div>
+
+        <div class="integration-card facebook-card" style="border-left: 4px solid #1877f2; background: linear-gradient(135deg, #f7f9fc 0%, #eef4ff 100%); border: 1px solid #c2d6f0;">
+          <h3 style="color: #1c2b33; display: flex; align-items: center; gap: 8px;">
+            <span style="color: #1877f2; font-weight: 600;">📱</span>
+            Facebook Integration 
+            <span class="status-badge" style="background: #fef2f2; color: #dc2626; border: 1px solid #ef4444;">Not Connected</span>
+          </h3>
+          <p style="color: #374151;">Connect your Facebook account for additional social authentication options</p>
+          <div style="margin-top: 15px;">
+            <a href="/auth/facebook" class="btn" style="background: #1877f2; color: white; border: 1px solid #1877f2; box-shadow: 0 1px 2px rgba(24,119,242,0.15);">
+              <span style="margin-right: 8px;">📘</span>
+              Connect Facebook
+            </a>
+          </div>
+        </div>
+      `
+        : isFacebookUser
+        ? `
+        <div class="integration-card google-card">
+          <h3>🔗 Google Workspace Integration 
+            <span class="status-badge status-disconnected">Not Connected</span>
+          </h3>
+          <p>Connect Google Workspace for advanced AI workflow capabilities</p>
+          <div style="margin-top: 15px;">
+            <a href="/auth/google" class="btn btn-primary">
+              <span style="margin-right: 8px;">🔗</span>
+              Connect Google Workspace
+            </a>
+          </div>
+        </div>
+
+        <div class="integration-card qb-card ${hasQBAuth ? "connected" : ""}">
+          <h3>📊 QuickBooks Integration 
+            <span class="status-badge ${
+              hasQBAuth ? "status-connected" : "status-disconnected"
+            }">
+              ${hasQBAuth ? "Connected" : "Not Connected"}
+            </span>
+          </h3>
+          
+          ${
+            hasQBAuth
+              ? `
+            <p>✅ Connected to QuickBooks Company</p>
+            <p><strong>Company ID:</strong> <code style="background: #f0f0f0; padding: 4px 8px; border-radius: 4px;">${customer.qb_company_id}</code></p>
+            <p><strong>Environment:</strong> <code style="background: #f0f0f0; padding: 4px 8px; border-radius: 4px;">${QB_ENVIRONMENT}</code></p>
+            <button onclick="disconnectQuickBooks()" class="btn btn-danger">🔌 Disconnect QuickBooks</button>
+          `
+              : `
+            <p>Connect your QuickBooks account to enable AI workflows with your accounting data</p>
+            <p><strong>Permissions:</strong> Read/Write access to QuickBooks accounting data</p>
+            <a href="/auth/quickbooks/standalone" class="btn btn-qb">📊 Connect QuickBooks</a>
+          `
+          }
+        </div>
+
+        <div class="integration-card facebook-card connected">
+          <h3>📱 Facebook Integration 
+            <span class="status-badge status-connected">Connected</span>
+          </h3>
+          <p>✅ Connected via Facebook Social Login</p>
+          <p><strong>Profile:</strong> ${userName}</p>
+          <p><strong>Email:</strong> ${userEmail}</p>
+          <div style="margin-top: 15px;">
+            <button onclick="disconnectFacebook()" class="btn btn-danger">
+              <span style="margin-right: 8px;">🔌</span>
+              Disconnect Facebook
+            </button>
+          </div>
+        </div>
+      `
+        : `
+        <div class="integration-card">
+          <h3>🎭 Demo Mode</h3>
+          <p><strong>Account Type:</strong> Basic Authentication</p>
+          <p>You're using a demo account. For full integration capabilities, please sign in with Google or Facebook.</p>
+          <div style="margin-top: 15px; display: flex; gap: 10px; flex-wrap: wrap;">
+            <a href="/auth/google" class="btn btn-primary" style="flex: 1; min-width: 140px;">
+              <span style="margin-right: 8px;">🔗</span>
+              Upgrade to Google
+            </a>
+            <a href="/auth/facebook" class="btn" style="background: #1877f2; color: white; flex: 1; min-width: 140px;">
+              <span style="margin-right: 8px;">📘</span>
+              Connect Facebook
+            </a>
+          </div>
+        </div>
+        
+        <div class="integration-card qb-card">
+          <h3>📊 QuickBooks Integration 
+            <span class="status-badge status-disconnected">Not Connected</span>
+          </h3>
+          <p>Connect your QuickBooks account to enable AI workflows with your accounting data</p>
+          <p><strong>Note:</strong> Available for all authentication methods</p>
+          <div style="margin-top: 15px;">
+            <a href="/auth/quickbooks/standalone" class="btn btn-qb">
+              <span style="margin-right: 8px;">📊</span>
+              Connect QuickBooks
+            </a>
+          </div>
+        </div>
+      `;
+
+      res.send(`
+        <html>
+        <head>
+          <title>Dashboard</title>
+          <style>
+            body { font-family: Arial, sans-serif; padding: 20px; background: #f5f5f5; }
+            .container { max-width: 1000px; margin: 0 auto; background: white; padding: 30px; border-radius: 10px; }
+            .integration-card { 
+              background: #f8f9fa; 
+              border-left: 4px solid #007bff; 
+              padding: 20px; 
+              margin: 20px 0; 
+              border-radius: 8px; 
+            }
+            .qb-card { border-left-color: #0077C5; }
+            .google-card { border-left-color: #4285f4; }
+            .facebook-card { border-left-color: #1877f2; }
+            .connected { border-left-color: #28a745; background: #e8f5e8; }
+            .btn { 
+              padding: 12px 24px; 
+              margin: 5px; 
+              border: none; 
+              border-radius: 6px; 
+              cursor: pointer; 
+              text-decoration: none; 
+              display: inline-block; 
+              font-weight: 500;
+            }
+            .btn-primary { background: #007bff; color: white; }
+            .btn-success { background: #28a745; color: white; }
+            .btn-danger { background: #dc3545; color: white; }
+            .btn-secondary { background: #6c757d; color: white; }
+            .btn-qb { background: #0077C5; color: white; }
+            .btn-facebook { background: #1877f2; color: white; }
+            .btn:hover { opacity: 0.9; }
+            .customer-id { 
+              background: #f0f0f0; 
+              padding: 8px 12px; 
+              border-radius: 4px; 
+              font-family: monospace; 
+              font-size: 14px;
+            }
+            .status-badge {
+              padding: 4px 12px;
+              border-radius: 20px;
+              font-size: 12px;
+              font-weight: bold;
+              text-transform: uppercase;
+            }
+            .status-connected { background: #d4edda; color: #155724; }
+            .status-disconnected { background: #f8d7da; color: #721c24; }
+            h3 { margin-top: 0; }
+            .auth-info {
+              background: #e3f2fd;
+              padding: 15px;
+              border-radius: 8px;
+              margin: 20px 0;
+              border-left: 4px solid #2196f3;
+            }
+          </style>
+        </head>
+        <body>
+          <div class="container">
+            <h1>Welcome, ${userName}! 👋</h1>
+            
+            <div class="auth-info">
+              <p><strong>Email:</strong> ${userEmail}</p>
+              <p><strong>Customer ID:</strong> <span class="customer-id">${customerId}</span>
+                <button onclick="copyToClipboard('${customerId}')" class="btn btn-primary" style="margin-left: 10px;">Copy for N8N</button>
+              </p>
+              <p><strong>Authentication:</strong> ${
+                isGoogleUser
+                  ? "🔗 Google OAuth"
+                  : isFacebookUser
+                  ? "📱 Facebook OAuth"
+                  : "🔑 Basic Auth"
+              }</p>
+            </div>
+            
+            ${qbStatusMessage}
+            
+            ${integrationSection}
+            
+            <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #dee2e6; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap;">
+              <div>
+                <a href="/" class="btn btn-secondary">← Portal Home</a>
+                <a href="/admin" class="btn btn-secondary">Admin Panel</a>
+              </div>
+              <div>
+                <a href="/logout" class="btn" style="background: #dc3545; color: white; font-size: 16px; padding: 14px 28px; font-weight: 600;" onclick="return confirm('Are you sure you want to logout?')">
+                  🚪 Sign Out
+                </a>
+              </div>
+            </div>
+          </div>
+          
+          <script>
+            function copyToClipboard(text) {
+              navigator.clipboard.writeText(text).then(() => {
+                alert('Customer ID copied to clipboard!');
+              }).catch(err => {
+                console.error('Failed to copy:', err);
+                const textArea = document.createElement('textarea');
+                textArea.value = text;
+                document.body.appendChild(textArea);
+                textArea.select();
+                document.execCommand('copy');
+                document.body.removeChild(textArea);
+                alert('Customer ID copied to clipboard!');
+              });
+            }
+            
+            async function disconnectQuickBooks() {
+              if (!confirm('Are you sure you want to disconnect QuickBooks? This will remove access to your accounting data.')) {
+                return;
+              }
+              
+              try {
+                const response = await fetch('/auth/quickbooks/disconnect', {
+                  method: 'POST',
+                  headers: {
+                    'Content-Type': 'application/json'
+                  }
+                });
+                
+                if (response.ok) {
+                  alert('QuickBooks disconnected successfully!');
+                  location.reload();
+                } else {
+                  const error = await response.json();
+                  alert('Failed to disconnect QuickBooks: ' + error.error);
+                }
+              } catch (error) {
+                alert('Error disconnecting QuickBooks: ' + error.message);
+              }
+            }
+
+            async function disconnectFacebook() {
+              if (!confirm('Are you sure you want to disconnect Facebook? You will be logged out.')) {
+                return;
+              }
+              
+              try {
+                const response = await fetch('/auth/facebook/disconnect', {
+                  method: 'POST',
+                  headers: {
+                    'Content-Type': 'application/json'
+                  }
+                });
+                
+                if (response.ok) {
+                  alert('Facebook disconnected successfully!');
+                  window.location.href = '/login';
+                } else {
+                  const error = await response.json();
+                  alert('Failed to disconnect Facebook: ' + error.error);
+                }
+              } catch (error) {
+                alert('Error disconnecting Facebook: ' + error.message);
+              }
+            }
+
+            async function disconnectGoogle() {
+              if (!confirm('Are you sure you want to disconnect from Google? This will remove access to your Google services.')) {
+                return;
+              }
+              
+              try {
+                const response = await fetch('/auth/google/disconnect', {
+                  method: 'POST',
+                  headers: {
+                    'Content-Type': 'application/json'
+                  }
+                });
+      
+                if (response.ok) {
+                  alert('Google disconnected successfully!');
+                  location.reload();
+                } else {
+                  const error = await response.json();
+                  alert('Failed to disconnect Google: ' + error.error);
+                }
+              } catch (error) {
+                alert('Error disconnecting Google: ' + error.message);
+              }
+            }
+          </script>
+        </body>
+        </html>
+      `);
+    } catch (error) {
+      console.error("❌ Dashboard error:", error);
+      res.status(500).send("Error loading dashboard: " + error.message);
+    }
   });
 
   return router;
