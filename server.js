@@ -16,6 +16,7 @@ const utilsRouter = require("./routes/utils");
 const authRouter = require("./routes/auth");
 const pagesRouter = require("./routes/pages");
 const sqlite3 = require("sqlite3").verbose();
+const smsRouter = require("./routes/sms");
 const { v4: uuidv4 } = require("uuid");
 const OAuthClient = require("intuit-oauth");
 const crypto = require("crypto");
@@ -446,6 +447,9 @@ app.use(
     QB_ENVIRONMENT,
   })
 );
+
+// SMS routes
+app.use("/", smsRouter({ db }));
 
 // Admin & utility routes
 app.use(
