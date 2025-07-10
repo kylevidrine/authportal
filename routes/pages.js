@@ -463,7 +463,7 @@ module.exports = (dependencies) => {
                   </button>
                 `
                     : `
-                  <a href="/auth/facebook" class="btn-modern btn-facebook-connect">
+                  <span class="btn-modern" style="background: #6c757d; color: white; opacity: 0.5; cursor: not-allowed;">
                     <div class="logo-icon logo-facebook"></div>
                     <span>Connect with Facebook</span>
                   </a>
