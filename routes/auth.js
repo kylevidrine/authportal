@@ -1,25 +1,22 @@
 // routes/auth.js
-const express = require("express");
+const express = require('express');
 const router = express.Router();
 
 module.exports = (dependencies) => {
-  const { getCustomerById, QB_ENVIRONMENT } = dependencies;
+  const { 
+    getCustomerById,
+    QB_ENVIRONMENT
+  } = dependencies;
 
   // =============================================================================
   // AUTHENTICATION ROUTES
   // =============================================================================
 
   // Login page (GET)
-  router.get("/login", (req, res) => {
-    const error = req.query.error
-      ? '<p style="color: red;">Invalid credentials</p>'
-      : "";
-    const googleError = req.query.google_error
-      ? '<p style="color: red;">Google authentication failed</p>'
-      : "";
-    const fbError = req.query.fb_error
-      ? '<p style="color: red;">Facebook authentication failed</p>'
-      : "";
+  router.get('/login', (req, res) => {
+    const error = req.query.error ? '<p style="color: red;">Invalid credentials</p>' : '';
+    const googleError = req.query.google_error ? '<p style="color: red;">Google authentication failed</p>' : '';
+    const fbError = req.query.fb_error ? '<p style="color: red;">Facebook authentication failed</p>' : '';
 
     res.send(`
       <!DOCTYPE html>
@@ -91,12 +88,14 @@ module.exports = (dependencies) => {
           }
           
           .facebook-signin-btn {
-            border-color: #dadce0;
+            background: #1877f2;
+            color: white;
+            border-color: #1877f2;
           }
           
           .facebook-signin-btn:hover {
-            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
-            border-color: #1877f2;
+            background: #166fe5;
+            box-shadow: 0 2px 8px rgba(24,119,242,0.3);
           }
           
           .oauth-icon {
@@ -174,95 +173,6 @@ module.exports = (dependencies) => {
           button:hover { 
             background: #1565c0; 
           }
-          
-          /* SMS Opt-in Section */
-          .sms-section {
-            margin-top: 40px;
-            padding-top: 30px;
-            border-top: 1px solid #dadce0;
-          }
-          .sms-title {
-            color: #28a745;
-            font-size: 16px;
-            font-weight: 600;
-            margin-bottom: 15px;
-            text-align: center;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 8px;
-          }
-          .sms-description {
-            color: #5f6368;
-            font-size: 14px;
-            text-align: center;
-            margin-bottom: 20px;
-            line-height: 1.4;
-          }
-          .consent-box {
-            background: #f0f8ff;
-            border: 1px solid #b3d9ff;
-            border-radius: 8px;
-            padding: 15px;
-            margin-bottom: 15px;
-            font-size: 13px;
-            line-height: 1.4;
-          }
-          .consent-checkbox {
-            display: flex;
-            align-items: flex-start;
-            gap: 8px;
-            cursor: pointer;
-          }
-          .consent-checkbox input[type="checkbox"] {
-            width: auto;
-            margin: 2px 0 0 0;
-            flex-shrink: 0;
-          }
-          .sms-button {
-            background: #28a745;
-            color: white;
-            padding: 12px 24px;
-            border: none;
-            border-radius: 8px;
-            width: 100%;
-            font-size: 16px;
-            font-weight: 500;
-            cursor: pointer;
-            transition: background-color 0.3s ease;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 8px;
-          }
-          .sms-button:hover {
-            background: #218838;
-          }
-          .sms-button:disabled {
-            background: #6c757d;
-            cursor: not-allowed;
-          }
-          .success-message {
-            background: #d4edda;
-            border: 1px solid #c3e6cb;
-            color: #155724;
-            padding: 12px;
-            border-radius: 8px;
-            text-align: center;
-            margin-top: 15px;
-            display: none;
-          }
-          .error-message {
-            background: #f8d7da;
-            border: 1px solid #f5c6cb;
-            color: #721c24;
-            padding: 12px;
-            border-radius: 8px;
-            text-align: center;
-            margin-top: 15px;
-            display: none;
-          }
-          
           .help-text {
             font-size: 12px;
             color: #5f6368;
@@ -322,171 +232,261 @@ module.exports = (dependencies) => {
               <input type="password" name="password" placeholder="Password" required>
               <button type="submit">Sign in</button>
             </form>
-          </div>
-
-          <!-- SMS Opt-in Section (NEW - At the bottom) -->
-          <div class="sms-section">
-            <div class="sms-title">
-              📱 Get SMS Notifications
-            </div>
-            <div class="sms-description">
-              Stay updated with workflow alerts and account notifications via text message.
-            </div>
-            
-            <form id="smsOptInForm">
-              <div class="consent-box">
-                <label class="consent-checkbox">
-                  <input type="checkbox" id="smsConsent" required>
-                  <span>I agree to receive text messages from Robo South LA AI Solutions regarding workflow updates and account notifications. Message and data rates may apply. Reply STOP to opt out anytime.</span>
-                </label>
-              </div>
-              
-              <input type="email" id="smsEmail" placeholder="Email address" required style="margin-bottom: 8px;">
-              <input type="tel" id="smsPhone" placeholder="Phone number (e.g., +1234567890)" required>
-              
-              <button type="submit" class="sms-button" id="smsSubmitBtn">
-                📱 Sign Up for SMS Notifications
-              </button>
-            </form>
-            
-            <div id="smsSuccessMessage" class="success-message">
-              ✅ Success! You've been signed up for SMS notifications.
-            </div>
-            <div id="smsErrorMessage" class="error-message">
-              ❌ Error signing up. Please try again.
-            </div>
-          </div>
-
           <div class="back-link">
             <a href="/">← Back to Home</a>
           </div>
         </div>
-
-        <script>
-          // SMS Opt-in form handler
-          document.getElementById('smsOptInForm').addEventListener('submit', async function(e) {
-            e.preventDefault();
-            
-            const submitBtn = document.getElementById('smsSubmitBtn');
-            const successMsg = document.getElementById('smsSuccessMessage');
-            const errorMsg = document.getElementById('smsErrorMessage');
-            
-            // Hide previous messages
-            successMsg.style.display = 'none';
-            errorMsg.style.display = 'none';
-            
-            // Check consent
-            const consent = document.getElementById('smsConsent').checked;
-            if (!consent) {
-              errorMsg.textContent = 'Please check the consent box to continue.';
-              errorMsg.style.display = 'block';
-              return;
-            }
-
-            // Get form data
-            const email = document.getElementById('smsEmail').value;
-            const phone = document.getElementById('smsPhone').value;
-
-            // Disable button during submission
-            submitBtn.disabled = true;
-            submitBtn.innerHTML = '⏳ Signing up...';
-
-            try {
-              const response = await fetch('/api/sms/public-opt-in', {
-                method: 'POST',
-                headers: {
-                  'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                  email: email,
-                  phone: phone,
-                  consent: true
-                })
-              });
-
-              const data = await response.json();
-
-              if (response.ok && data.success) {
-                successMsg.textContent = '✅ Success! You\\'ve been signed up for SMS notifications.';
-                successMsg.style.display = 'block';
-                document.getElementById('smsOptInForm').reset();
-              } else {
-                throw new Error(data.message || 'Failed to sign up for SMS notifications');
-              }
-            } catch (error) {
-              errorMsg.textContent = '❌ ' + error.message;
-              errorMsg.style.display = 'block';
-            } finally {
-              // Re-enable button
-              submitBtn.disabled = false;
-              submitBtn.innerHTML = '📱 Sign Up for SMS Notifications';
-            }
-          });
-        </script>
       </body>
       </html>
     `);
   });
 
-  // Login form submission (POST) - keeping your existing logic
-  router.post("/login", (req, res) => {
+  // Login form submission (POST)
+  router.post('/login', (req, res) => {
     const { username, password } = req.body;
-    console.log("🔑 Basic auth login attempt for:", username);
+    console.log('🔑 Basic auth login attempt for:', username);
 
     const validUsers = {
-      "reviewer@robosouthla.com": {
-        password: "GoogleReview2024!",
-        role: "reviewer",
-        name: "Google Play Reviewer",
+      'reviewer@robosouthla.com': {
+        password: 'GoogleReview2024!',
+        role: 'reviewer',
+        name: 'Google Play Reviewer'
       },
-      "demo@robosouthla.com": {
-        password: "DemoUser2024!",
-        role: "demo",
-        name: "Demo User",
+      'demo@robosouthla.com': {
+        password: 'DemoUser2024!',
+        role: 'demo',
+        name: 'Demo User'
       },
-      "admin@robosouthla.com": {
-        password: "AdminAccess2024!",
-        role: "admin",
-        name: "System Administrator",
+      'admin@robosouthla.com': {
+        password: 'AdminAccess2024!',
+        role: 'admin',
+        name: 'System Administrator'
       },
-      "dwayne@kadn.com": {
-        password: "Password123",
-        role: "user",
-        name: "System Administrator",
+      'dwayne@kadn.com': {
+        password: 'Password123',
+        role: 'user',
+        name: 'System Administrator'
       },
-      "kylevidrine@me.com": {
-        password: "KylePass2024!",
-        role: "admin",
-        name: "Kyle Vidrine",
-      },
-      "kylemvidrine@gmail.com": {
-        password: "KylePass2024!",
-        role: "admin",
-        name: "Kyle Vidrine",
-      },
+      'kylevidrine@me.com': {
+        password: 'KylePass2024!',
+        role: 'owner',
+        name: 'Kyle Vidrine'
+      }
     };
 
     const user = validUsers[username];
-
     if (user && user.password === password) {
-      console.log("✅ Basic auth successful for:", username);
-
+      // Set session with user info
       req.session.authenticated = true;
       req.session.userInfo = {
         email: username,
         name: user.name,
         role: user.role,
-        customerId: null, // Will be set when needed
+        authType: 'basic'
       };
 
-      res.redirect("/");
+      // Force session save before redirect
+      req.session.save((err) => {
+        if (err) {
+          console.error('❌ Session save error for basic auth:', err);
+          return res.redirect('/login?error=session_failed');
+        }
+        console.log('✅ Basic auth successful for:', username, 'Role:', user.role);
+        res.redirect('/dashboard');
+      });
     } else {
-      console.log("❌ Basic auth failed for:", username);
-      res.redirect("/login?error=1");
+      console.log('❌ Basic auth failed for:', username);
+      res.redirect('/login?error=1');
     }
   });
 
-  // ... rest of your existing auth routes remain the same
+  // Logout
+  router.get('/logout', (req, res) => {
+    const userEmail = req.user?.email || req.session?.userInfo?.email;
+    console.log('🚪 Logging out user:', userEmail);
+
+    // Clear session first
+    req.session.destroy((err) => {
+      if (err) {
+        console.error('❌ Session destroy error:', err);
+      } else {
+        console.log('✅ Session destroyed successfully');
+      }
+
+      // Handle Passport logout if applicable
+      if (req.logout && typeof req.logout === 'function') {
+        req.logout((logoutErr) => {
+          if (logoutErr) {
+            console.error('❌ Passport logout error:', logoutErr);
+          } else {
+            console.log('✅ Passport logout successful');
+          }
+          res.redirect('/login');
+        });
+      } else {
+        res.redirect('/login');
+      }
+    });
+  });
+
+  // OAuth result page
+  router.get('/auth-result', async (req, res) => {
+    const urlParams = new URL(req.url, `http://${req.get('host')}`);
+    const qbSuccess = urlParams.searchParams.get('qb_success');
+    const qbError = urlParams.searchParams.get('qb_error');
+    const googleSuccess = urlParams.searchParams.get('google_success');
+    const customerId = urlParams.searchParams.get('customer_id');
+
+    let customer = null;
+    if (customerId) {
+      try {
+        customer = await getCustomerById(customerId);
+      } catch (error) {
+        console.error('Error fetching customer:', error);
+      }
+    }
+
+    let statusMessage = '';
+    let nextSteps = '';
+
+    if (qbSuccess && customer) {
+      statusMessage = `
+        <div style="background: #d4edda; color: #155724; padding: 20px; margin: 20px 0; border-radius: 8px; border-left: 4px solid #28a745;">
+          <h3 style="margin-top: 0;">✅ QuickBooks Connected Successfully!</h3>
+          <p>Company ID: <code>${customer.qb_company_id}</code></p>
+          <p>Environment: <code>${QB_ENVIRONMENT}</code></p>
+        </div>
+      `;
+
+      const hasGoogle = !!customer.google_access_token;
+
+      nextSteps = `
+        <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0;">
+          <h4>🚀 Next Steps:</h4>
+          <div style="background: white; padding: 15px; border-radius: 6px; margin: 10px 0;">
+            <strong>Your Customer ID:</strong> 
+            <span style="background: #f0f0f0; padding: 8px 12px; border-radius: 4px; font-family: monospace; font-size: 14px;">${customerId}</span>
+            <button onclick="copyToClipboard('${customerId}')" style="margin-left: 10px; padding: 6px 12px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer;">Copy</button>
+          </div>
+          
+          ${!hasGoogle ? `
+            <div style="background: #e3f2fd; padding: 15px; border-radius: 6px; margin: 10px 0; border-left: 4px solid #2196f3;">
+              <strong>💡 Enhance Your Integration:</strong>
+              <p>Add Google Workspace for even more powerful workflows!</p>
+              <a href="/auth/google" style="background: #4285f4; color: white; padding: 10px 20px; text-decoration: none; border-radius: 6px; display: inline-block;">
+                Connect Google Workspace
+              </a>
+            </div>
+          ` : `
+            <div style="background: #e8f5e8; padding: 15px; border-radius: 6px; margin: 10px 0; border-left: 4px solid #28a745;">
+              <strong>🎉 Fully Integrated!</strong>
+              <p>You now have both Google Workspace and QuickBooks connected!</p>
+            </div>
+          `}
+        </div>
+      `;
+    } else if (googleSuccess && customer) {
+      statusMessage = `
+        <div style="background: #d4edda; color: #155724; padding: 20px; margin: 20px 0; border-radius: 8px; border-left: 4px solid #28a745;">
+          <h3 style="margin-top: 0;">✅ Google Workspace Connected Successfully!</h3>
+          <p>Email: <code>${customer.email}</code></p>
+        </div>
+      `;
+
+      const hasQB = !!(customer.qb_access_token && customer.qb_company_id);
+
+      nextSteps = `
+        <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0;">
+          <h4>🚀 Next Steps:</h4>
+          <div style="background: white; padding: 15px; border-radius: 6px; margin: 10px 0;">
+            <strong>Your Customer ID:</strong> 
+            <span style="background: #f0f0f0; padding: 8px 12px; border-radius: 4px; font-family: monospace; font-size: 14px;">${customerId}</span>
+            <button onclick="copyToClipboard('${customerId}')" style="margin-left: 10px; padding: 6px 12px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer;">Copy</button>
+          </div>
+          
+          ${!hasQB ? `
+            <div style="background: #fff3cd; padding: 15px; border-radius: 6px; margin: 10px 0; border-left: 4px solid #ffc107;">
+              <strong>💡 Add QuickBooks Integration:</strong>
+              <p>Connect your accounting data for comprehensive business workflows!</p>
+              <a href="/auth/quickbooks/standalone" style="background: #0077C5; color: white; padding: 10px 20px; text-decoration: none; border-radius: 6px; display: inline-block;">
+                Connect QuickBooks
+              </a>
+            </div>
+          ` : `
+            <div style="background: #e8f5e8; padding: 15px; border-radius: 6px; margin: 10px 0; border-left: 4px solid #28a745;">
+              <strong>🎉 Fully Integrated!</strong>
+              <p>You now have both Google Workspace and QuickBooks connected!</p>
+            </div>
+          `}
+        </div>
+      `;
+    } else {
+      const errorMessages = {
+        'auth_failed': 'Authorization failed. Please try again.',
+        'session_lost': 'Session expired. Please start the authorization process again.',
+        'token_save_failed': 'Failed to save authorization tokens. Please try again.'
+      };
+      statusMessage = `
+        <div style="background: #f8d7da; color: #721c24; padding: 20px; margin: 20px 0; border-radius: 8px; border-left: 4px solid #dc3545;">
+          <h3 style="margin-top: 0;">❌ Authorization Error</h3>
+          <p>${errorMessages[qbError] || 'Unknown error occurred'}</p>
+        </div>
+      `;
+
+      nextSteps = `
+        <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0;">
+          <h4>🔄 Try Again:</h4>
+          <a href="/" style="background: #007bff; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block; margin: 5px;">
+            Start Over
+          </a>
+        </div>
+      `;
+    }
+
+    res.send(`
+      <html>
+      <head>
+        <title>Authorization Result</title>
+        <style>
+          body { font-family: Arial, sans-serif; padding: 20px; background: #f5f5f5; }
+          .container { max-width: 800px; margin: 0 auto; background: white; padding: 30px; border-radius: 10px; }
+          .btn { background: #007bff; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block; margin: 5px; }
+          h1 { color: #333; }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <h1>🤖 AI Workflow Portal</h1>
+          
+          ${statusMessage}
+          ${nextSteps}
+          
+          <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #dee2e6;">
+            <a href="/" class="btn">← Back to Portal</a>
+            <a href="/admin" class="btn" style="background: #6c757d;">Admin Panel</a>
+          </div>
+        </div>
+        
+        <script>
+          function copyToClipboard(text) {
+            navigator.clipboard.writeText(text).then(() => {
+              alert('Customer ID copied to clipboard!');
+            }).catch(err => {
+              console.error('Failed to copy:', err);
+              const textArea = document.createElement('textarea');
+              textArea.value = text;
+              document.body.appendChild(textArea);
+              textArea.select();
+              document.execCommand('copy');
+              document.body.removeChild(textArea);
+              alert('Customer ID copied to clipboard!');
+            });
+          }
+        </script>
+      </body>
+      </html>
+    `);
+  });
 
   return router;
 };
