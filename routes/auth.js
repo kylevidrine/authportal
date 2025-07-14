@@ -1,22 +1,25 @@
 // routes/auth.js
-const express = require('express');
+const express = require("express");
 const router = express.Router();
 
 module.exports = (dependencies) => {
-  const { 
-    getCustomerById,
-    QB_ENVIRONMENT
-  } = dependencies;
+  const { getCustomerById, QB_ENVIRONMENT } = dependencies;
 
   // =============================================================================
   // AUTHENTICATION ROUTES
   // =============================================================================
 
   // Login page (GET)
-  router.get('/login', (req, res) => {
-    const error = req.query.error ? '<p style="color: red;">Invalid credentials</p>' : '';
-    const googleError = req.query.google_error ? '<p style="color: red;">Google authentication failed</p>' : '';
-    const fbError = req.query.fb_error ? '<p style="color: red;">Facebook authentication failed</p>' : '';
+  router.get("/login", (req, res) => {
+    const error = req.query.error
+      ? '<p style="color: red;">Invalid credentials</p>'
+      : "";
+    const googleError = req.query.google_error
+      ? '<p style="color: red;">Google authentication failed</p>'
+      : "";
+    const fbError = req.query.fb_error
+      ? '<p style="color: red;">Facebook authentication failed</p>'
+      : "";
 
     res.send(`
       <!DOCTYPE html>
@@ -232,46 +235,52 @@ module.exports = (dependencies) => {
               <input type="password" name="password" placeholder="Password" required>
               <button type="submit">Sign in</button>
             </form>
-          <div class="back-link">
-            <a href="/">← Back to Home</a>
-          </div>
-        </div>
+          <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #ddd;">
+            <h3 style="text-align: center; color: #333;">📱 Get Workflow SMS Alerts</h3>
+            <iframe 
+              src="https://n8n.robosouthla.com/form/8f505536-b28b-4df6-ac25-2a5803c4a45b" 
+              width="100%" 
+              height="400"
+              style="border: none; border-radius: 8px;">
+            </iframe>
+          </div>  
+
       </body>
       </html>
     `);
   });
 
   // Login form submission (POST)
-  router.post('/login', (req, res) => {
+  router.post("/login", (req, res) => {
     const { username, password } = req.body;
-    console.log('🔑 Basic auth login attempt for:', username);
+    console.log("🔑 Basic auth login attempt for:", username);
 
     const validUsers = {
-      'reviewer@robosouthla.com': {
-        password: 'GoogleReview2024!',
-        role: 'reviewer',
-        name: 'Google Play Reviewer'
+      "reviewer@robosouthla.com": {
+        password: "GoogleReview2024!",
+        role: "reviewer",
+        name: "Google Play Reviewer",
       },
-      'demo@robosouthla.com': {
-        password: 'DemoUser2024!',
-        role: 'demo',
-        name: 'Demo User'
+      "demo@robosouthla.com": {
+        password: "DemoUser2024!",
+        role: "demo",
+        name: "Demo User",
       },
-      'admin@robosouthla.com': {
-        password: 'AdminAccess2024!',
-        role: 'admin',
-        name: 'System Administrator'
+      "admin@robosouthla.com": {
+        password: "AdminAccess2024!",
+        role: "admin",
+        name: "System Administrator",
       },
-      'dwayne@kadn.com': {
-        password: 'Password123',
-        role: 'user',
-        name: 'System Administrator'
+      "dwayne@kadn.com": {
+        password: "Password123",
+        role: "user",
+        name: "System Administrator",
       },
-      'kylevidrine@me.com': {
-        password: 'KylePass2024!',
-        role: 'owner',
-        name: 'Kyle Vidrine'
-      }
+      "kylevidrine@me.com": {
+        password: "KylePass2024!",
+        role: "owner",
+        name: "Kyle Vidrine",
+      },
     };
 
     const user = validUsers[username];
@@ -282,72 +291,77 @@ module.exports = (dependencies) => {
         email: username,
         name: user.name,
         role: user.role,
-        authType: 'basic'
+        authType: "basic",
       };
 
       // Force session save before redirect
       req.session.save((err) => {
         if (err) {
-          console.error('❌ Session save error for basic auth:', err);
-          return res.redirect('/login?error=session_failed');
+          console.error("❌ Session save error for basic auth:", err);
+          return res.redirect("/login?error=session_failed");
         }
-        console.log('✅ Basic auth successful for:', username, 'Role:', user.role);
-        res.redirect('/dashboard');
+        console.log(
+          "✅ Basic auth successful for:",
+          username,
+          "Role:",
+          user.role
+        );
+        res.redirect("/dashboard");
       });
     } else {
-      console.log('❌ Basic auth failed for:', username);
-      res.redirect('/login?error=1');
+      console.log("❌ Basic auth failed for:", username);
+      res.redirect("/login?error=1");
     }
   });
 
   // Logout
-  router.get('/logout', (req, res) => {
+  router.get("/logout", (req, res) => {
     const userEmail = req.user?.email || req.session?.userInfo?.email;
-    console.log('🚪 Logging out user:', userEmail);
+    console.log("🚪 Logging out user:", userEmail);
 
     // Clear session first
     req.session.destroy((err) => {
       if (err) {
-        console.error('❌ Session destroy error:', err);
+        console.error("❌ Session destroy error:", err);
       } else {
-        console.log('✅ Session destroyed successfully');
+        console.log("✅ Session destroyed successfully");
       }
 
       // Handle Passport logout if applicable
-      if (req.logout && typeof req.logout === 'function') {
+      if (req.logout && typeof req.logout === "function") {
         req.logout((logoutErr) => {
           if (logoutErr) {
-            console.error('❌ Passport logout error:', logoutErr);
+            console.error("❌ Passport logout error:", logoutErr);
           } else {
-            console.log('✅ Passport logout successful');
+            console.log("✅ Passport logout successful");
           }
-          res.redirect('/login');
+          res.redirect("/login");
         });
       } else {
-        res.redirect('/login');
+        res.redirect("/login");
       }
     });
   });
 
   // OAuth result page
-  router.get('/auth-result', async (req, res) => {
-    const urlParams = new URL(req.url, `http://${req.get('host')}`);
-    const qbSuccess = urlParams.searchParams.get('qb_success');
-    const qbError = urlParams.searchParams.get('qb_error');
-    const googleSuccess = urlParams.searchParams.get('google_success');
-    const customerId = urlParams.searchParams.get('customer_id');
+  router.get("/auth-result", async (req, res) => {
+    const urlParams = new URL(req.url, `http://${req.get("host")}`);
+    const qbSuccess = urlParams.searchParams.get("qb_success");
+    const qbError = urlParams.searchParams.get("qb_error");
+    const googleSuccess = urlParams.searchParams.get("google_success");
+    const customerId = urlParams.searchParams.get("customer_id");
 
     let customer = null;
     if (customerId) {
       try {
         customer = await getCustomerById(customerId);
       } catch (error) {
-        console.error('Error fetching customer:', error);
+        console.error("Error fetching customer:", error);
       }
     }
 
-    let statusMessage = '';
-    let nextSteps = '';
+    let statusMessage = "";
+    let nextSteps = "";
 
     if (qbSuccess && customer) {
       statusMessage = `
@@ -369,7 +383,9 @@ module.exports = (dependencies) => {
             <button onclick="copyToClipboard('${customerId}')" style="margin-left: 10px; padding: 6px 12px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer;">Copy</button>
           </div>
           
-          ${!hasGoogle ? `
+          ${
+            !hasGoogle
+              ? `
             <div style="background: #e3f2fd; padding: 15px; border-radius: 6px; margin: 10px 0; border-left: 4px solid #2196f3;">
               <strong>💡 Enhance Your Integration:</strong>
               <p>Add Google Workspace for even more powerful workflows!</p>
@@ -377,12 +393,14 @@ module.exports = (dependencies) => {
                 Connect Google Workspace
               </a>
             </div>
-          ` : `
+          `
+              : `
             <div style="background: #e8f5e8; padding: 15px; border-radius: 6px; margin: 10px 0; border-left: 4px solid #28a745;">
               <strong>🎉 Fully Integrated!</strong>
               <p>You now have both Google Workspace and QuickBooks connected!</p>
             </div>
-          `}
+          `
+          }
         </div>
       `;
     } else if (googleSuccess && customer) {
@@ -404,7 +422,9 @@ module.exports = (dependencies) => {
             <button onclick="copyToClipboard('${customerId}')" style="margin-left: 10px; padding: 6px 12px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer;">Copy</button>
           </div>
           
-          ${!hasQB ? `
+          ${
+            !hasQB
+              ? `
             <div style="background: #fff3cd; padding: 15px; border-radius: 6px; margin: 10px 0; border-left: 4px solid #ffc107;">
               <strong>💡 Add QuickBooks Integration:</strong>
               <p>Connect your accounting data for comprehensive business workflows!</p>
@@ -412,24 +432,28 @@ module.exports = (dependencies) => {
                 Connect QuickBooks
               </a>
             </div>
-          ` : `
+          `
+              : `
             <div style="background: #e8f5e8; padding: 15px; border-radius: 6px; margin: 10px 0; border-left: 4px solid #28a745;">
               <strong>🎉 Fully Integrated!</strong>
               <p>You now have both Google Workspace and QuickBooks connected!</p>
             </div>
-          `}
+          `
+          }
         </div>
       `;
     } else {
       const errorMessages = {
-        'auth_failed': 'Authorization failed. Please try again.',
-        'session_lost': 'Session expired. Please start the authorization process again.',
-        'token_save_failed': 'Failed to save authorization tokens. Please try again.'
+        auth_failed: "Authorization failed. Please try again.",
+        session_lost:
+          "Session expired. Please start the authorization process again.",
+        token_save_failed:
+          "Failed to save authorization tokens. Please try again.",
       };
       statusMessage = `
         <div style="background: #f8d7da; color: #721c24; padding: 20px; margin: 20px 0; border-radius: 8px; border-left: 4px solid #dc3545;">
           <h3 style="margin-top: 0;">❌ Authorization Error</h3>
-          <p>${errorMessages[qbError] || 'Unknown error occurred'}</p>
+          <p>${errorMessages[qbError] || "Unknown error occurred"}</p>
         </div>
       `;
 
