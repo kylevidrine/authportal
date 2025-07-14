@@ -240,13 +240,11 @@ module.exports = (dependencies) => {
             <iframe 
               src="https://n8n.robosouthla.com/form/8f505536-b28b-4df6-ac25-2a5803c4a45b" 
               width="100%" 
-              height="400"
+              height="500"
               style="border: none; border-radius: 8px;">
             </iframe>
           </div>  
-          <div class="back-link">
-            <a href="/">← Back to Home</a>
-          </div>
+
         </div>
       </body>
       </html>
