@@ -93,13 +93,14 @@ module.exports = function (dependencies) {
         } else {
           // Create new record
           const id = uuidv4();
+          const source = req.body.source || "login_page";
           const insertStmt = db.prepare(`
           INSERT INTO sms_signups (id, email, phone, consent, opt_in_source)
           VALUES (?, ?, ?, ?, ?)
         `);
 
           insertStmt.run(
-            [id, email, cleanPhone, consent ? 1 : 0, "login_page"],
+            [id, email, cleanPhone, consent ? 1 : 0, source],
             function (insertErr) {
               if (insertErr) {
                 console.error("Database error creating signup:", insertErr);
@@ -118,7 +119,7 @@ module.exports = function (dependencies) {
                   email,
                   phone: cleanPhone,
                   consent: consent ? 1 : 0,
-                  source: "login_page",
+                  source: source,
                 },
               });
             }
