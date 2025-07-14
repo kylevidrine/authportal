@@ -58,6 +58,7 @@ module.exports = function (dependencies) {
 
         if (existingSignup) {
           // Update existing record
+          const source = req.body.source || "login_page";
           const updateStmt = db.prepare(`
           UPDATE sms_signups 
           SET phone = ?, consent = ?, created_at = CURRENT_TIMESTAMP, opt_in_source = ?
@@ -65,7 +66,7 @@ module.exports = function (dependencies) {
         `);
 
           updateStmt.run(
-            [cleanPhone, consent ? 1 : 0, "login_page", email],
+            [cleanPhone, consent ? 1 : 0, source, email],
             function (updateErr) {
               if (updateErr) {
                 console.error("Database error updating signup:", updateErr);
@@ -83,7 +84,7 @@ module.exports = function (dependencies) {
                   email,
                   phone: cleanPhone,
                   consent: consent ? 1 : 0,
-                  source: "login_page",
+                  source: source,
                 },
               });
             }
