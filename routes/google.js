@@ -882,7 +882,7 @@ module.exports = (dependencies) => {
                           </button>
                       </div>
                       <small class="help-text">
-                          Leave blank to auto-generate name like "Expense Tracker - ${userName}"
+                          Leave blank to auto-generate name like "Spreadsheet - ${userName}"
                       </small>
                   </div>
                   <div class="navigation">
@@ -914,7 +914,7 @@ module.exports = (dependencies) => {
                   }
                   
                   // Auto-generate name if empty
-                  return \`Expense Tracker - \${userName || userEmail.split('@')[0]}\`;
+                  return \`Spreadsheet - \${userName || userEmail.split('@')[0]}\`;
               }
 
               async function loadSpreadsheets() {
@@ -1233,7 +1233,7 @@ module.exports = (dependencies) => {
 
       // Use custom name or default
       const spreadsheetName =
-        name || `Expense Tracker - ${customer.name || customer.email}`;
+        name || `Spreadsheet - ${customer.name || customer.email}`;
 
       const createResponse = await fetch(
         "https://sheets.googleapis.com/v4/spreadsheets",
@@ -1250,7 +1250,7 @@ module.exports = (dependencies) => {
             sheets: [
               {
                 properties: {
-                  title: "Receipts",
+                  title: "Sheet1",
                 },
               },
             ],
@@ -1268,23 +1268,6 @@ module.exports = (dependencies) => {
 
       const fileId = spreadsheetData.spreadsheetId;
       const fileName = spreadsheetData.properties.title;
-
-      // Add headers to the spreadsheet
-      await fetch(
-        `https://sheets.googleapis.com/v4/spreadsheets/${fileId}/values/Receipts!A1:F1?valueInputOption=RAW`,
-        {
-          method: "PUT",
-          headers: {
-            Authorization: `Bearer ${customer.google_access_token}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            values: [
-              ["Merchant", "Date", "Amount", "Tax", "Category", "Items"],
-            ],
-          }),
-        }
-      );
 
       // Save to database
       const stmt = db.prepare(`
