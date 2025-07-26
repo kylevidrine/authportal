@@ -882,7 +882,7 @@ module.exports = (dependencies) => {
                           </button>
                       </div>
                       <small class="help-text">
-                          Leave blank to auto-generate name like "Spreadsheet - ${userName}"
+                          Leave blank to auto-generate name like "Spreadsheet  - ${userName}"
                       </small>
                   </div>
                   <div class="navigation">

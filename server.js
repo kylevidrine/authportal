@@ -475,6 +475,13 @@ app.use(
 
 app.use("/telegram", telegramRouter);
 
+// Add robots.txt route to block search engines
+app.get("/robots.txt", (req, res) => {
+  res.type("text/plain");
+  res.send(`User-agent: *
+Disallow: /`);
+});
+
 app.listen(PORT, "0.0.0.0", () => {
   console.log(`Portal running on port ${PORT}`);
   console.log(
