@@ -11,6 +11,11 @@ module.exports = (dependencies) => {
 
   // Login page (GET)
   router.get("/login", (req, res) => {
+    console.log('🔍 Login page loaded');
+    console.log('TikTok Client ID exists:', !!process.env.TIKTOK_CLIENT_ID);
+    console.log('TikTok Client Secret exists:', !!process.env.TIKTOK_CLIENT_SECRET);
+    console.log('TikTok Callback URL:', process.env.TIKTOK_CALLBACK_URL);
+    
     const error = req.query.error
       ? '<p style="color: red;">Invalid credentials</p>'
       : "";
@@ -238,10 +243,12 @@ module.exports = (dependencies) => {
             <span>Continue with Facebook</span>
           </a>
           
+          ${(process.env.TIKTOK_CLIENT_ID && process.env.TIKTOK_CLIENT_SECRET && process.env.TIKTOK_CALLBACK_URL) ? `
           <a href="/auth/tiktok" class="oauth-signin-btn tiktok-signin-btn">
             <div class="oauth-icon tiktok-icon"></div>
             <span>Continue with TikTok</span>
           </a>
+          ` : ''}
           
           <!-- Divider -->
           <div class="divider">
