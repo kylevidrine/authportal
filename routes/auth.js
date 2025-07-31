@@ -20,6 +20,9 @@ module.exports = (dependencies) => {
     const fbError = req.query.fb_error
       ? '<p style="color: red;">Facebook authentication failed</p>'
       : "";
+    const tiktokError = req.query.tiktok_error
+      ? '<p style="color: red;">TikTok authentication failed</p>'
+      : "";
 
     res.send(`
       <!DOCTYPE html>
@@ -101,6 +104,17 @@ module.exports = (dependencies) => {
             box-shadow: 0 2px 8px rgba(24,119,242,0.3);
           }
           
+          .tiktok-signin-btn {
+            background: #000000;
+            color: white;
+            border-color: #000000;
+          }
+          
+          .tiktok-signin-btn:hover {
+            background: #333333;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+          }
+          
           .oauth-icon {
             width: 20px;
             height: 20px;
@@ -115,6 +129,10 @@ module.exports = (dependencies) => {
           
           .facebook-icon {
             background-image: url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjQiIGhlaWdodD0iMjQiIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHBhdGggZD0iTTI0IDEyLjA3M0MyNCA1LjQwNSAxOC42MjcgMCAxMiAwUzAgNS40MDUgMCAxMi4wNzNDMCAxOC4wOTcgNC4zODggMjMuMDk0IDEwLjEyNSAyNFYxNS41NjNINy4wNzhWMTIuMDczSDEwLjEyNVY5LjQxM0MxMC4xMjUgNi4zODcgMTEuOTE3IDQuNzU2IDE0LjY1OCA0Ljc1NkMxNS45NyA0Ljc1NiAxNy4zNDQgNSAxNy4zNDQgNVY3Ljk2OUgxNS44M0MxNC4zMTEgNy45NjkgMTMuODc1IDguOTA2IDEzLjg3NSAxMC4wNzNWMTIuMDczSDE3LjIwM0wxNi42NzEgMTUuNTYzSDEzLjg3NVYyNEMxOS42MTIgMjMuMDk0IDI0IDE4LjA5NyAyNCAxMi4wNzNaIiBmaWxsPSJ3aGl0ZSIvPgo8L3N2Zz4K');
+          }
+          
+          .tiktok-icon {
+            background-image: url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjQiIGhlaWdodD0iMjQiIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHBhdGggZD0iTTE5LjU5OSA5LjQyYy0uNzgtLjQ0LTEuNjYtLjY5LTIuNTktLjY5LTIuNzEgMC00LjkxIDIuMi00LjkxIDQuOTFzMi4yIDQuOTEgNC45MSA0LjkxYzIuNzEgMCA0LjkxLTIuMiA0LjkxLTQuOTFzLTIuMi00LjkxLTQuOTEtNC45MWMtLjQ5IDAtLjk2LjA3LTEuNDEuMjF2LTIuNzNjLjQ1LS4xNC45Mi0uMjEgMS40MS0uMjEgNC4xNCAwIDcuNSAzLjM2IDcuNSA3LjVzLTMuMzYgNy41LTcuNSA3LjVTNS4wOSAxOC42NCA1LjA5IDE0LjVjMC0uNDUuMDctLjkuMjEtMS4zNHYtMi43M2MtLjE0LjQ0LS4yMS45MS0uMjEgMS40MSAwIDQuMTQgMy4zNiA3LjUgNy41IDcuNXM3LjUtMy4zNiA3LjUtNy41LTMuMzYtNy41LTcuNS03LjV6IiBmaWxsPSJ3aGl0ZSIvPgo8L3N2Zz4K');
           }
           
           /* Divider */
@@ -207,6 +225,7 @@ module.exports = (dependencies) => {
           
           ${googleError}
           ${fbError}
+          ${tiktokError}
           
           <!-- OAuth Login Options -->
           <a href="/auth/google" class="oauth-signin-btn google-signin-btn">
@@ -217,6 +236,11 @@ module.exports = (dependencies) => {
           <a href="/auth/facebook" class="oauth-signin-btn facebook-signin-btn">
             <div class="oauth-icon facebook-icon"></div>
             <span>Continue with Facebook</span>
+          </a>
+          
+          <a href="/auth/tiktok" class="oauth-signin-btn tiktok-signin-btn">
+            <div class="oauth-icon tiktok-icon"></div>
+            <span>Continue with TikTok</span>
           </a>
           
           <!-- Divider -->

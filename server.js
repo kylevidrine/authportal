@@ -7,6 +7,10 @@ const {
   router: facebookRouter,
   configureFacebookStrategy,
 } = require("./routes/facebook");
+const {
+  router: tiktokRouter,
+  configureTikTokStrategy,
+} = require("./routes/tiktok");
 const adminRouter = require("./routes/admin");
 const googleRouter = require("./routes/google");
 const quickbooksRouter = require("./routes/quickbooks");
@@ -387,6 +391,9 @@ app.locals.getAllCustomers = getAllCustomers;
 // Configure Facebook strategy with helper functions
 configureFacebookStrategy(getCustomerById, storeCustomer);
 
+// Configure TikTok strategy with helper functions
+configureTikTokStrategy(getCustomerById, storeCustomer);
+
 // =============================================================================
 // SHARED DEPENDENCIES FOR ROUTE INJECTION
 // =============================================================================
@@ -424,6 +431,7 @@ app.use("/", pagesRouter(sharedDependencies));
 
 // Authentication routes
 app.use("/", facebookRouter);
+app.use("/", tiktokRouter);
 app.use("/", googleRouter(sharedDependencies));
 app.use(
   "/",
