@@ -106,17 +106,52 @@ router.get("/auth/tiktok/callback", async (req, res) => {
     return res.redirect("/auth/login?tiktok_error=1");
   }
 
-  // For demo purposes, just show success
-  res.send(`
-    <h1>🎬 TikTok OAuth Demo Success!</h1>
-    <p><strong>Authorization code received:</strong> ${code.substring(
-      0,
-      20
-    )}...</p>
-    <p>✅ This proves the OAuth flow is working!</p>
-    <p>📝 Ready for TikTok Developer review submission</p>
-    <a href="/dashboard" style="background: #1976d2; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">Continue to Dashboard</a>
-  `);
+  try {
+    // Exchange authorization code for access token
+    console.log("🔄 Exchanging code for access token...");
+    const tokenResponse = await fetch(
+      "https://open.tiktokapis.com/v2/oauth/token/",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded",
+          "Cache-Control": "no-cache",
+        },
+        body: new URLSearchParams({
+          client_key: process.env.TIKTOK_CLIENT_ID,
+          client_secret: process.env.TIKTOK_CLIENT_SECRET,
+          code: code,
+          grant_type: "authorization_code",
+          redirect_uri: process.env.TIKTOK_CALLBACK_URL,
+        }),
+      }
+    );
+
+    const tokenData = await tokenResponse.json();
+    console.log("🔑 Token exchange response:", tokenData);
+
+    if (tokenData.access_token) {
+      // Store the access token (for demo, we'll just show it)
+      res.send(`
+        <h1>🎬 TikTok OAuth Success!</h1>
+        <p><strong>✅ User access token obtained!</strong></p>
+        <p><strong>Access Token:</strong> ${tokenData.access_token.substring(
+          0,
+          20
+        )}...</p>
+        <p><strong>Scope:</strong> ${tokenData.scope}</p>
+        <p><strong>Expires in:</strong> ${tokenData.expires_in} seconds</p>
+        <p>🎯 This token can now be used for video uploads!</p>
+        <a href="/tiktok/upload" style="background: #1976d2; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">Test Video Upload</a>
+      `);
+    } else {
+      console.log("❌ Token exchange failed:", tokenData);
+      res.redirect("/auth/login?tiktok_error=1");
+    }
+  } catch (error) {
+    console.error("❌ Token exchange error:", error);
+    res.redirect("/auth/login?tiktok_error=1");
+  }
 });
 
 // =============================================================================
