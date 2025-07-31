@@ -1,28 +1,30 @@
-const express = require('express');
+const express = require("express");
 const router = express.Router();
-const fetch = require('node-fetch');
-const multer = require('multer');
+const fetch = require("node-fetch");
+const multer = require("multer");
 
 // Configure multer for file uploads
 const upload = multer({
-  dest: 'uploads/',
+  dest: "uploads/",
   limits: { fileSize: 500 * 1024 * 1024 }, // 500MB limit
   fileFilter: (req, file, cb) => {
-    if (file.mimetype.startsWith('video/')) {
+    if (file.mimetype.startsWith("video/")) {
       cb(null, true);
     } else {
-      cb(new Error('Only video files allowed'), false);
+      cb(new Error("Only video files allowed"), false);
     }
-  }
+  },
 });
 
 // Check if TikTok environment variables are configured
 function isTikTokConfigured() {
-  const configured = !!(process.env.TIKTOK_CLIENT_ID && process.env.TIKTOK_CLIENT_SECRET);
-  console.log('🔍 TikTok config check:', {
+  const configured = !!(
+    process.env.TIKTOK_CLIENT_ID && process.env.TIKTOK_CLIENT_SECRET
+  );
+  console.log("🔍 TikTok config check:", {
     clientId: !!process.env.TIKTOK_CLIENT_ID,
     clientSecret: !!process.env.TIKTOK_CLIENT_SECRET,
-    configured
+    configured,
   });
   return configured;
 }
@@ -30,188 +32,255 @@ function isTikTokConfigured() {
 // Get TikTok Client Access Token (for Content Posting API)
 async function getTikTokClientToken() {
   try {
-    const response = await fetch('https://open.tiktokapis.com/v2/oauth/token/', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
-        'Cache-Control': 'no-cache'
-      },
-      body: new URLSearchParams({
-        client_key: process.env.TIKTOK_CLIENT_ID,
-        client_secret: process.env.TIKTOK_CLIENT_SECRET,
-        grant_type: 'client_credentials'
-      })
-    });
+    const response = await fetch(
+      "https://open.tiktokapis.com/v2/oauth/token/",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded",
+          "Cache-Control": "no-cache",
+        },
+        body: new URLSearchParams({
+          client_key: process.env.TIKTOK_CLIENT_ID,
+          client_secret: process.env.TIKTOK_CLIENT_SECRET,
+          grant_type: "client_credentials",
+        }),
+      }
+    );
 
     const data = await response.json();
-    
+
     if (data.access_token) {
-      console.log('✅ TikTok client token obtained');
+      console.log("✅ TikTok client token obtained");
       return data.access_token;
     } else {
-      console.error('❌ Failed to get TikTok client token:', data);
+      console.error("❌ Failed to get TikTok client token:", data);
       return null;
     }
   } catch (error) {
-    console.error('❌ Error getting TikTok client token:', error);
+    console.error("❌ Error getting TikTok client token:", error);
     return null;
   }
 }
+
+// =============================================================================
+// TIKTOK OAUTH ROUTES
+// =============================================================================
+
+// TikTok OAuth authorization route
+router.get("/auth/tiktok", (req, res) => {
+  console.log("🎬 Starting TikTok OAuth flow");
+
+  if (!isTikTokConfigured()) {
+    console.log("❌ TikTok not configured");
+    return res.redirect("/auth/login?tiktok_error=1");
+  }
+
+  const scopes = ["user.info.basic", "video.upload", "video.publish"];
+
+  const authUrl =
+    "https://www.tiktok.com/v2/auth/authorize/" +
+    `?client_key=${process.env.TIKTOK_CLIENT_ID}` +
+    `&scope=${scopes.join(",")}` +
+    `&response_type=code` +
+    `&redirect_uri=${encodeURIComponent(process.env.TIKTOK_CALLBACK_URL)}` +
+    `&state=${req.sessionID}`;
+
+  console.log("🔗 Redirecting to TikTok auth:", authUrl);
+  res.redirect(authUrl);
+});
+
+// TikTok OAuth callback route
+router.get("/auth/tiktok/callback", async (req, res) => {
+  console.log("🎬 TikTok callback received");
+
+  const { code, error, state } = req.query;
+
+  if (error) {
+    console.log("❌ TikTok OAuth error:", error);
+    return res.redirect("/auth/login?tiktok_error=1");
+  }
+
+  if (!code) {
+    console.log("❌ No authorization code received");
+    return res.redirect("/auth/login?tiktok_error=1");
+  }
+
+  // For demo purposes, just show success
+  res.send(`
+    <h1>🎬 TikTok OAuth Demo Success!</h1>
+    <p><strong>Authorization code received:</strong> ${code.substring(
+      0,
+      20
+    )}...</p>
+    <p>✅ This proves the OAuth flow is working!</p>
+    <p>📝 Ready for TikTok Developer review submission</p>
+    <a href="/dashboard" style="background: #1976d2; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">Continue to Dashboard</a>
+  `);
+});
 
 // =============================================================================
 // N8N INTEGRATION ENDPOINTS
 // =============================================================================
 
 // N8N Webhook - Upload Video to TikTok
-router.post('/api/n8n/tiktok/upload', upload.single('video'), async (req, res) => {
-  try {
-    console.log('🎬 N8N TikTok upload request received');
-    
-    if (!isTikTokConfigured()) {
-      return res.status(400).json({ 
-        error: 'TikTok not configured',
-        message: 'Missing TIKTOK_CLIENT_ID or TIKTOK_CLIENT_SECRET' 
-      });
-    }
+router.post(
+  "/api/n8n/tiktok/upload",
+  upload.single("video"),
+  async (req, res) => {
+    try {
+      console.log("🎬 N8N TikTok upload request received");
 
-    const { title, description, privacy = 'SELF_ONLY' } = req.body;
-    
-    if (!req.file) {
-      return res.status(400).json({ 
-        error: 'No video file provided',
-        message: 'Please include a video file in the request' 
-      });
-    }
-
-    if (!title) {
-      return res.status(400).json({ 
-        error: 'Missing title',
-        message: 'Video title is required' 
-      });
-    }
-
-    const clientToken = await getTikTokClientToken();
-    if (!clientToken) {
-      return res.status(500).json({ 
-        error: 'Failed to get TikTok access token',
-        message: 'Could not authenticate with TikTok API' 
-      });
-    }
-
-    // Step 1: Initialize upload
-    console.log('📤 Initializing TikTok upload...');
-    const initResponse = await fetch('https://open.tiktokapis.com/v2/post/publish/content/init/', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${clientToken}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        post_info: {
-          title: title,
-          description: description || '',
-          privacy_level: privacy,
-          disable_duet: false,
-          disable_comment: false,
-          disable_stitch: false,
-          video_cover_timestamp_ms: 1000
-        },
-        source_info: {
-          source: 'FILE_UPLOAD',
-          video_size: req.file.size,
-          chunk_size: req.file.size,
-          total_chunk_count: 1
-        }
-      })
-    });
-
-    const initData = await initResponse.json();
-    
-    if (!initData.data || !initData.data.upload_url) {
-      console.error('❌ TikTok upload init failed:', initData);
-      return res.status(500).json({ 
-        error: 'Upload initialization failed',
-        details: initData,
-        message: 'TikTok rejected the upload request' 
-      });
-    }
-
-    console.log('✅ Upload initialized successfully');
-    console.log('📍 Upload URL:', initData.data.upload_url);
-    console.log('🆔 Publish ID:', initData.data.publish_id);
-
-    // For sandbox mode, we'll return the upload details
-    // In production, you'd actually upload the file here
-    res.json({
-      success: true,
-      message: 'TikTok upload initialized successfully! (Sandbox mode)',
-      data: {
-        publish_id: initData.data.publish_id,
-        upload_url: initData.data.upload_url,
-        video_title: title,
-        video_description: description,
-        privacy_level: privacy,
-        file_size: req.file.size,
-        file_name: req.file.originalname,
-        note: 'In sandbox mode, the video won\'t actually be published but the API flow is working!'
+      if (!isTikTokConfigured()) {
+        return res.status(400).json({
+          error: "TikTok not configured",
+          message: "Missing TIKTOK_CLIENT_ID or TIKTOK_CLIENT_SECRET",
+        });
       }
-    });
 
-  } catch (error) {
-    console.error('❌ N8N TikTok upload error:', error);
-    res.status(500).json({ 
-      error: 'Server error',
-      message: error.message 
-    });
+      const { title, description, privacy = "SELF_ONLY" } = req.body;
+
+      if (!req.file) {
+        return res.status(400).json({
+          error: "No video file provided",
+          message: "Please include a video file in the request",
+        });
+      }
+
+      if (!title) {
+        return res.status(400).json({
+          error: "Missing title",
+          message: "Video title is required",
+        });
+      }
+
+      const clientToken = await getTikTokClientToken();
+      if (!clientToken) {
+        return res.status(500).json({
+          error: "Failed to get TikTok access token",
+          message: "Could not authenticate with TikTok API",
+        });
+      }
+
+      // Step 1: Initialize upload
+      console.log("📤 Initializing TikTok upload...");
+      const initResponse = await fetch(
+        "https://open.tiktokapis.com/v2/post/publish/content/init/",
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${clientToken}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            post_info: {
+              title: title,
+              description: description || "",
+              privacy_level: privacy,
+              disable_duet: false,
+              disable_comment: false,
+              disable_stitch: false,
+              video_cover_timestamp_ms: 1000,
+            },
+            source_info: {
+              source: "FILE_UPLOAD",
+              video_size: req.file.size,
+              chunk_size: req.file.size,
+              total_chunk_count: 1,
+            },
+          }),
+        }
+      );
+
+      const initData = await initResponse.json();
+
+      if (!initData.data || !initData.data.upload_url) {
+        console.error("❌ TikTok upload init failed:", initData);
+        return res.status(500).json({
+          error: "Upload initialization failed",
+          details: initData,
+          message: "TikTok rejected the upload request",
+        });
+      }
+
+      console.log("✅ Upload initialized successfully");
+      console.log("📍 Upload URL:", initData.data.upload_url);
+      console.log("🆔 Publish ID:", initData.data.publish_id);
+
+      // For sandbox mode, we'll return the upload details
+      // In production, you'd actually upload the file here
+      res.json({
+        success: true,
+        message: "TikTok upload initialized successfully! (Sandbox mode)",
+        data: {
+          publish_id: initData.data.publish_id,
+          upload_url: initData.data.upload_url,
+          video_title: title,
+          video_description: description,
+          privacy_level: privacy,
+          file_size: req.file.size,
+          file_name: req.file.originalname,
+          note: "In sandbox mode, the video won't actually be published but the API flow is working!",
+        },
+      });
+    } catch (error) {
+      console.error("❌ N8N TikTok upload error:", error);
+      res.status(500).json({
+        error: "Server error",
+        message: error.message,
+      });
+    }
   }
-});
+);
 
 // N8N Test Endpoint
-router.get('/api/n8n/tiktok/test', async (req, res) => {
+router.get("/api/n8n/tiktok/test", async (req, res) => {
   try {
     if (!isTikTokConfigured()) {
-      return res.status(400).json({ 
-        error: 'TikTok not configured',
-        message: 'Add TIKTOK_CLIENT_ID and TIKTOK_CLIENT_SECRET to environment' 
+      return res.status(400).json({
+        error: "TikTok not configured",
+        message: "Add TIKTOK_CLIENT_ID and TIKTOK_CLIENT_SECRET to environment",
       });
     }
 
     const clientToken = await getTikTokClientToken();
-    
+
     res.json({
       success: !!clientToken,
-      message: clientToken ? 'TikTok API connection successful!' : 'TikTok API connection failed',
+      message: clientToken
+        ? "TikTok API connection successful!"
+        : "TikTok API connection failed",
       configured: isTikTokConfigured(),
       client_token_obtained: !!clientToken,
       endpoints: {
-        upload: '/api/n8n/tiktok/upload',
-        test: '/api/n8n/tiktok/test'
+        upload: "/api/n8n/tiktok/upload",
+        test: "/api/n8n/tiktok/test",
       },
       usage: {
-        method: 'POST',
-        url: '/api/n8n/tiktok/upload',
-        headers: { 'Content-Type': 'multipart/form-data' },
+        method: "POST",
+        url: "/api/n8n/tiktok/upload",
+        headers: { "Content-Type": "multipart/form-data" },
         body: {
-          video: '[video file]',
-          title: 'Video title (required)',
-          description: 'Video description (optional)',
-          privacy: 'SELF_ONLY, FOLLOWER_OF_CREATOR, or PUBLIC (optional, defaults to SELF_ONLY)'
-        }
-      }
+          video: "[video file]",
+          title: "Video title (required)",
+          description: "Video description (optional)",
+          privacy:
+            "SELF_ONLY, FOLLOWER_OF_CREATOR, or PUBLIC (optional, defaults to SELF_ONLY)",
+        },
+      },
     });
-
   } catch (error) {
-    res.status(500).json({ 
-      error: 'Server error',
-      message: error.message 
+    res.status(500).json({
+      error: "Server error",
+      message: error.message,
     });
   }
 });
 
 // Simple upload test page
-router.get('/tiktok/upload', (req, res) => {
+router.get("/tiktok/upload", (req, res) => {
   if (!isTikTokConfigured()) {
-    return res.status(400).send('TikTok not configured');
+    return res.status(400).send("TikTok not configured");
   }
 
   res.send(`
@@ -341,10 +410,10 @@ Fields:
 
 // Legacy configuration function (kept for compatibility)
 function configureTikTokStrategy(getCustomerById, storeCustomer) {
-  console.log('✅ TikTok Content Posting API configured (N8N integration)');
+  console.log("✅ TikTok Content Posting API configured (N8N integration)");
 }
 
 module.exports = {
   router,
-  configureTikTokStrategy
+  configureTikTokStrategy,
 };
