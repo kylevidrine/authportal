@@ -555,7 +555,7 @@ module.exports = (dependencies) => {
           </div>
           
           <script>
-            async function disconnectGoogle() {
+                        async function disconnectGoogle() {
               if (!confirm('Are you sure you want to disconnect from Google? This will remove access to your Google services.')) {
                 return;
               }
@@ -567,7 +567,7 @@ module.exports = (dependencies) => {
                     'Content-Type': 'application/json'
                   }
                 });
-                
+      
                 if (response.ok) {
                   alert('Google disconnected successfully!');
                   location.reload();
@@ -577,6 +577,31 @@ module.exports = (dependencies) => {
                 }
               } catch (error) {
                 alert('Error disconnecting Google: ' + error.message);
+              }
+            }
+
+            async function disconnectTikTok() {
+              if (!confirm('Are you sure you want to disconnect TikTok? This will remove access to your TikTok account.')) {
+                return;
+              }
+              
+              try {
+                const response = await fetch('/auth/tiktok/disconnect', {
+                  method: 'POST',
+                  headers: {
+                    'Content-Type': 'application/json'
+                  }
+                });
+                
+                if (response.ok) {
+                  alert('TikTok disconnected successfully!');
+                  location.reload();
+                } else {
+                  const error = await response.json();
+                  alert('Failed to disconnect TikTok: ' + error.error);
+                }
+              } catch (error) {
+                alert('Error disconnecting TikTok: ' + error.message);
               }
             }
 
@@ -742,6 +767,8 @@ module.exports = (dependencies) => {
       const urlParams = new URL(req.url, `http://${req.get("host")}`);
       const qbSuccess = urlParams.searchParams.get("qb_success");
       const qbError = urlParams.searchParams.get("qb_error");
+      const tiktokSuccess = urlParams.searchParams.get("tiktok_success");
+      const tiktokError = urlParams.searchParams.get("tiktok_error");
 
       let qbStatusMessage = "";
       if (qbSuccess) {
@@ -758,6 +785,15 @@ module.exports = (dependencies) => {
         qbStatusMessage = `<div style="background: #f8d7da; color: #721c24; padding: 10px; margin: 10px 0; border-radius: 5px;">❌ ${
           errorMessages[qbError] || "Unknown error occurred"
         }</div>`;
+      }
+
+      let tiktokStatusMessage = "";
+      if (tiktokSuccess) {
+        tiktokStatusMessage =
+          '<div style="background: #fff0f3; color: #d91a72; padding: 10px; margin: 10px 0; border-radius: 5px; border: 1px solid #ff0050;">✅ TikTok connected successfully!</div>';
+      } else if (tiktokError) {
+        tiktokStatusMessage =
+          '<div style="background: #f8d7da; color: #721c24; padding: 10px; margin: 10px 0; border-radius: 5px;">❌ TikTok connection failed. Please try again.</div>';
       }
       // Generate appropriate dashboard content based on auth type
       const integrationSection = isGoogleUser
@@ -832,6 +868,38 @@ module.exports = (dependencies) => {
             </a>
           </div>
         </div>
+
+        <div class="integration-card tiktok-card ${hasTikTokAuth ? "connected" : ""}" style="border-left: 4px solid #ff0050; background: ${
+          hasTikTokAuth 
+            ? "linear-gradient(135deg, #fff0f3 0%, #ffe6f0 100%)" 
+            : "linear-gradient(135deg, #fafbfc 0%, #f4f7fa 100%)"
+        }; border: 1px solid #f0c5d1;">
+          <h3 style="color: #1c2e4a; display: flex; align-items: center; gap: 8px;">
+            <span style="color: #ff0050; font-weight: 600;">🎬</span>
+            TikTok Integration 
+            <span class="status-badge" style="background: ${
+              hasTikTokAuth 
+                ? "#fff0f3; color: #d91a72; border: 1px solid #ff0050" 
+                : "#fef2f2; color: #dc2626; border: 1px solid #ef4444"
+            };">
+              ${hasTikTokAuth ? "Connected" : "Not Connected"}
+            </span>
+          </h3>
+          
+          ${hasTikTokAuth 
+            ? `
+            <p style="color: #d91a72; font-weight: 500;">✅ Connected to TikTok for Business</p>
+            <p style="color: #374151;"><strong style="color: #1c2e4a;">User ID:</strong> <code style="background: #f3f4f6; padding: 4px 8px; border-radius: 4px; color: #6b7280; border: 1px solid #d1d5db;">${customer.tiktok_user_id || 'N/A'}</code></p>
+            <p style="color: #374151;"><strong style="color: #1c2e4a;">Permissions:</strong> Video upload, user info</p>
+            <button onclick="disconnectTikTok()" class="btn" style="background: #dc2626; color: white; border: 1px solid #dc2626; box-shadow: 0 1px 2px rgba(220,38,38,0.15);">🔌 Disconnect TikTok</button>
+          ` 
+            : `
+            <p style="color: #374151;">Connect your TikTok account to enable automated video uploads and content management</p>
+            <p style="color: #374151;"><strong style="color: #1c2e4a;">Permissions:</strong> Video upload, basic profile info</p>
+            <a href="/auth/tiktok" class="btn" style="background: #ff0050; color: white; border: 1px solid #ff0050; box-shadow: 0 1px 2px rgba(255,0,80,0.15);">🎬 Connect TikTok</a>
+          `
+          }
+        </div>
       `
         : isFacebookUser
         ? `
@@ -888,6 +956,31 @@ module.exports = (dependencies) => {
           </div>
         </div>
 
+        <div class="integration-card tiktok-card ${hasTikTokAuth ? "connected" : ""}">
+          <h3>🎬 TikTok Integration 
+            <span class="status-badge ${
+              hasTikTokAuth ? "status-connected" : "status-disconnected"
+            }">
+              ${hasTikTokAuth ? "Connected" : "Not Connected"}
+            </span>
+          </h3>
+          
+          ${
+            hasTikTokAuth
+              ? `
+            <p>✅ Connected to TikTok for Business</p>
+            <p><strong>User ID:</strong> <code style="background: #f0f0f0; padding: 4px 8px; border-radius: 4px;">${customer.tiktok_user_id || 'N/A'}</code></p>
+            <p><strong>Permissions:</strong> Video upload, user info</p>
+            <button onclick="disconnectTikTok()" class="btn btn-danger">🔌 Disconnect TikTok</button>
+          `
+              : `
+            <p>Connect your TikTok account to enable automated video uploads and content management</p>
+            <p><strong>Permissions:</strong> Video upload, basic profile info</p>
+            <a href="/auth/tiktok" class="btn" style="background: #ff0050; color: white;">🎬 Connect TikTok</a>
+          `
+          }
+        </div>
+
 
       `
         : `
@@ -920,6 +1013,20 @@ module.exports = (dependencies) => {
             </a>
           </div>
         </div>
+
+        <div class="integration-card tiktok-card">
+          <h3>🎬 TikTok Integration 
+            <span class="status-badge status-disconnected">Not Connected</span>
+          </h3>
+          <p>Connect your TikTok account to enable automated video uploads and content management</p>
+          <p><strong>Note:</strong> Requires Google or Facebook login first</p>
+          <div style="margin-top: 15px;">
+            <a href="/auth/google" class="btn btn-primary">
+              <span style="margin-right: 8px;">🔗</span>
+              Login with Google First
+            </a>
+          </div>
+        </div>
       `;
 
       res.send(`
@@ -939,6 +1046,7 @@ module.exports = (dependencies) => {
             .qb-card { border-left-color: #0077C5; }
             .google-card { border-left-color: #4285f4; }
             .facebook-card { border-left-color: #1877f2; }
+            .tiktok-card { border-left-color: #ff0050; }
             .connected { border-left-color: #28a745; background: #e8f5e8; }
             .btn { 
               padding: 12px 24px; 
@@ -1002,6 +1110,7 @@ module.exports = (dependencies) => {
             </div>
             
             ${qbStatusMessage}
+            ${tiktokStatusMessage}
             
             ${integrationSection}
             

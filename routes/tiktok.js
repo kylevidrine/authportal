@@ -97,12 +97,12 @@ router.get("/auth/tiktok/callback", async (req, res) => {
 
   if (error) {
     console.log("❌ TikTok OAuth error:", error);
-    return res.redirect("/auth/login?tiktok_error=1");
+    return res.redirect("/login?tiktok_error=1");
   }
 
   if (!code) {
     console.log("❌ No authorization code received");
-    return res.redirect("/auth/login?tiktok_error=1");
+    return res.redirect("/login?tiktok_error=1");
   }
 
   try {
@@ -130,29 +130,76 @@ router.get("/auth/tiktok/callback", async (req, res) => {
     console.log("🔑 Token exchange response:", tokenData);
 
     if (tokenData.access_token) {
-      // Store tokens in session for demo (database storage requires customer login first)
-      req.session.tiktokAccessToken = tokenData.access_token;
-      req.session.tiktokRefreshToken = tokenData.refresh_token;
-      req.session.tiktokTokenExpiry = Date.now() + tokenData.expires_in * 1000;
-      req.session.tiktokUserId = tokenData.open_id;
+      // Get customer info - require Google login first
+      if (!req.isAuthenticated() || !req.user) {
+        console.log("❌ No authenticated user for TikTok connection");
+        return res.redirect("/login?error=tiktok_requires_login");
+      }
 
-      console.log("✅ TikTok tokens stored in session for demo");
+      const customerId = req.user.id;
+      const expiresIn = tokenData.expires_in || 86400; // Default 24 hours
+      const newExpiry = new Date(Date.now() + expiresIn * 1000);
 
-      res.send(`
-        <h1>🎬 TikTok OAuth Success!</h1>
-        <p><strong>✅ User access token obtained and stored!</strong></p>
-        <p><strong>Scope:</strong> ${tokenData.scope}</p>
-        <p><strong>User ID:</strong> ${tokenData.open_id || "N/A"}</p>
-        <p>🎯 Ready for video uploads!</p>
-        <a href="/tiktok/upload" style="background: #1976d2; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">Test Video Upload</a>
-      `);
+      // Save TikTok tokens to database
+      const createDatabaseFunctions = require("../utils/database");
+      const { updateCustomerTikTokTokens } = createDatabaseFunctions(req.app.locals.db);
+      
+      await updateCustomerTikTokTokens(customerId, {
+        tiktokAccessToken: tokenData.access_token,
+        tiktokRefreshToken: tokenData.refresh_token,
+        tiktokTokenExpiry: newExpiry,
+        tiktokUserId: tokenData.open_id,
+      });
+
+      console.log("✅ TikTok tokens saved to database for:", req.user.email);
+      res.redirect("/dashboard?tiktok_success=1");
     } else {
       console.log("❌ Token exchange failed:", tokenData);
-      res.redirect("/auth/login?tiktok_error=1");
+      res.redirect("/dashboard?tiktok_error=1");
     }
   } catch (error) {
     console.error("❌ Token exchange error:", error);
-    res.redirect("/auth/login?tiktok_error=1");
+    res.redirect("/dashboard?tiktok_error=1");
+  }
+});
+
+// Add TikTok disconnect route
+router.post("/auth/tiktok/disconnect", async (req, res) => {
+  try {
+    if (!req.isAuthenticated()) {
+      return res.status(401).json({ error: "Not authenticated" });
+    }
+
+    const customerId = req.user.id;
+    console.log("Disconnecting TikTok for user:", req.user.email);
+
+    const stmt = req.app.locals.db.prepare(`
+      UPDATE customers 
+      SET tiktok_access_token = NULL, 
+          tiktok_refresh_token = NULL, 
+          tiktok_user_id = NULL, 
+          tiktok_token_expiry = NULL,
+          updated_at = CURRENT_TIMESTAMP
+      WHERE id = ?
+    `);
+
+    stmt.run([customerId], function (err) {
+      if (err) {
+        console.error("Error disconnecting TikTok:", err);
+        return res.status(500).json({ error: "Failed to disconnect" });
+      }
+
+      console.log("TikTok disconnected successfully for:", req.user.email);
+      res.json({
+        success: true,
+        message: "TikTok disconnected successfully",
+      });
+    });
+
+    stmt.finalize();
+  } catch (error) {
+    console.error("Disconnect error:", error);
+    res.status(500).json({ error: "Server error" });
   }
 });
 
