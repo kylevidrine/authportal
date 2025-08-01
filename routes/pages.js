@@ -62,6 +62,7 @@ module.exports = (dependencies) => {
             hasQBAuth = !!(
               customer?.qb_access_token && customer?.qb_company_id
             );
+            const hasTikTokAuth = !!customer?.tiktok_access_token;
           } catch (error) {
             console.error("Error fetching basic auth customer:", error);
           }
