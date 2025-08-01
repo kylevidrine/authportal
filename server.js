@@ -122,6 +122,37 @@ db.serialize(() => {
   });
 });
 
+// Add TikTok columns to existing customers table
+db.serialize(() => {
+  db.run(`ALTER TABLE customers ADD COLUMN tiktok_access_token TEXT`, (err) => {
+    if (err && !err.message.includes("duplicate column"))
+      console.log("TikTok access token column exists");
+  });
+
+  db.run(
+    `ALTER TABLE customers ADD COLUMN tiktok_refresh_token TEXT`,
+    (err) => {
+      if (err && !err.message.includes("duplicate column"))
+        console.log("TikTok refresh token column exists");
+    }
+  );
+
+  db.run(
+    `ALTER TABLE customers ADD COLUMN tiktok_token_expiry DATETIME`,
+    (err) => {
+      if (err && !err.message.includes("duplicate column"))
+        console.log("TikTok token expiry column exists");
+    }
+  );
+
+  db.run(`ALTER TABLE customers ADD COLUMN tiktok_user_id TEXT`, (err) => {
+    if (err && !err.message.includes("duplicate column"))
+      console.log("TikTok user ID column exists");
+  });
+
+  console.log("✅ Database schema updated for TikTok integration");
+});
+
 // Add this to your server.js database setup section after your existing ALTER TABLE commands:
 
 // Add Google Picker / Spreadsheet columns to existing customers table
@@ -375,6 +406,7 @@ const {
   validateToken,
   updateCustomerQBTokens,
   updateCustomerGoogleTokens,
+  updateCustomerTikTokTokens,
   validateQBToken,
 } = createDatabaseFunctions(db, QB_ENVIRONMENT);
 
