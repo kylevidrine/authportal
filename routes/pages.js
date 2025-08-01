@@ -32,12 +32,14 @@ module.exports = (dependencies) => {
       // Get customer data to check QuickBooks status
       let customer = null;
       let hasQBAuth = false;
+      let hasTikTokAuth = false;
 
       if (req.isAuthenticated?.() && req.user) {
         // Google OAuth user
         try {
           customer = await getCustomerById(req.user.id);
           hasQBAuth = !!(customer?.qb_access_token && customer?.qb_company_id);
+          hasTikTokAuth = !!customer?.tiktok_access_token;
         } catch (error) {
           console.error("Error fetching Google customer:", error);
         }
@@ -51,6 +53,7 @@ module.exports = (dependencies) => {
             hasQBAuth = !!(
               customer?.qb_access_token && customer?.qb_company_id
             );
+            hasTikTokAuth = !!customer?.tiktok_access_token;
           } catch (error) {
             console.error("Error fetching Facebook customer:", error);
           }
@@ -62,7 +65,7 @@ module.exports = (dependencies) => {
             hasQBAuth = !!(
               customer?.qb_access_token && customer?.qb_company_id
             );
-            const hasTikTokAuth = !!customer?.tiktok_access_token;
+            hasTikTokAuth = !!customer?.tiktok_access_token;
           } catch (error) {
             console.error("Error fetching basic auth customer:", error);
           }
