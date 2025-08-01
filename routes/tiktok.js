@@ -131,17 +131,19 @@ router.get("/auth/tiktok/callback", async (req, res) => {
     console.log("🔑 Token exchange response:", tokenData);
 
     if (tokenData.access_token) {
-      // Store the access token (for demo, we'll just show it)
+      // TODO: Store token in database with user session
+      // For now, store in session for demo
+      req.session.tiktokAccessToken = tokenData.access_token;
+      req.session.tiktokRefreshToken = tokenData.refresh_token;
+      req.session.tiktokTokenExpiry = Date.now() + tokenData.expires_in * 1000;
+
+      console.log("✅ TikTok tokens stored in session");
+
       res.send(`
         <h1>🎬 TikTok OAuth Success!</h1>
-        <p><strong>✅ User access token obtained!</strong></p>
-        <p><strong>Access Token:</strong> ${tokenData.access_token.substring(
-          0,
-          20
-        )}...</p>
+        <p><strong>✅ User access token obtained and stored!</strong></p>
         <p><strong>Scope:</strong> ${tokenData.scope}</p>
-        <p><strong>Expires in:</strong> ${tokenData.expires_in} seconds</p>
-        <p>🎯 This token can now be used for video uploads!</p>
+        <p>🎯 Ready for video uploads!</p>
         <a href="/tiktok/upload" style="background: #1976d2; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">Test Video Upload</a>
       `);
     } else {
@@ -189,13 +191,16 @@ router.post(
         });
       }
 
-      const clientToken = await getTikTokClientToken();
-      if (!clientToken) {
-        return res.status(500).json({
-          error: "Failed to get TikTok access token",
-          message: "Could not authenticate with TikTok API",
+      // Get user access token from session instead of client token
+      const userToken = req.session?.tiktokAccessToken;
+      if (!userToken) {
+        return res.status(401).json({
+          error: "No TikTok authorization",
+          message: "Please complete TikTok OAuth first at /auth/tiktok",
         });
       }
+
+      console.log("📤 Using user access token for upload...");
 
       // Step 1: Initialize upload
       console.log("📤 Initializing TikTok upload...");
@@ -204,7 +209,7 @@ router.post(
         {
           method: "POST",
           headers: {
-            Authorization: `Bearer ${clientToken}`,
+            Authorization: `Bearer ${userToken}`,
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
