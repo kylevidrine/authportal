@@ -8,7 +8,6 @@ const {
   configureFacebookStrategy,
 } = require("./routes/facebook");
 const tiktokModule = require("./routes/tiktok");
-const tiktokRouter = tiktokModule;
 const { configureTikTokStrategy } = tiktokModule;
 const adminRouter = require("./routes/admin");
 const googleRouter = require("./routes/google");
@@ -463,7 +462,7 @@ app.use("/", pagesRouter(sharedDependencies));
 
 // Authentication routes
 app.use("/", facebookRouter);
-app.use("/", tiktokRouter(sharedDependencies));
+app.use("/", tiktokModule(sharedDependencies));
 app.use("/", googleRouter(sharedDependencies));
 app.use(
   "/",
