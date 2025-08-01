@@ -507,6 +507,47 @@ module.exports = (dependencies) => {
               </div>
             </div>
             
+<!-- TikTok Integration Card -->
+              <div class="integration-card tiktok-card ${
+                hasTikTokAuth ? "connected" : ""
+              }" style="border-left: 4px solid #000000; background: ${
+        hasTikTokAuth
+          ? "linear-gradient(135deg, #f0fdf4 0%, #e6fffa 100%)"
+          : "linear-gradient(135deg, #fafbfc 0%, #f4f7fa 100%)"
+      }; border: 1px solid #c1d6e8;">
+                <h3 style="color: #1c2e4a; display: flex; align-items: center; gap: 8px;">
+                  <span style="color: #000000; font-weight: 600;">🎬</span>
+                  TikTok Integration 
+                  <span class="status-badge" style="background: ${
+                    hasTikTokAuth
+                      ? "#e8f5e9; color: #137333; border: 1px solid #34a853"
+                      : "#fef2f2; color: #dc2626; border: 1px solid #ef4444"
+                  };">
+                    ${hasTikTokAuth ? "Connected" : "Not Connected"}
+                  </span>
+                </h3>
+                
+                ${
+                  hasTikTokAuth
+                    ? `
+                  <p style="color: #047857; font-weight: 500;">✅ Connected to TikTok</p>
+                  <p style="color: #374151;"><strong style="color: #1c2e4a;">User ID:</strong> <code style="background: #f3f4f6; padding: 4px 8px; border-radius: 4px; color: #6b7280; border: 1px solid #d1d5db;">${
+                    customer?.tiktok_user_id || "N/A"
+                  }</code></p>
+                  <p style="color: #374151;"><strong style="color: #1c2e4a;">Services:</strong> Video Upload, Content Posting</p>
+                  <button onclick="disconnectTikTok()" class="btn" style="background: #dc2626; color: white; border: 1px solid #dc2626; box-shadow: 0 1px 2px rgba(220,38,38,0.15);">🔌 Disconnect TikTok</button>
+                `
+                    : `
+                  <p style="color: #374151;">Connect your TikTok account to enable automated video posting</p>
+                  <p style="color: #374151;"><strong style="color: #1c2e4a;">Features:</strong> Video upload, automated posting, content workflows</p>
+                  <a href="/auth/tiktok" class="btn" style="background: #000000; color: white; border: 1px solid #000000; box-shadow: 0 1px 2px rgba(0,0,0,0.15);">🎬 Connect TikTok</a>
+                `
+                }
+              </div>            
+
+
+
+            
             <div style="text-align: center; margin: 30px 0;">
               <a href="/dashboard" class="btn-dashboard">
                 Go to Dashboard →
@@ -681,6 +722,7 @@ module.exports = (dependencies) => {
       const hasQBAuth = !!(
         customer?.qb_access_token && customer?.qb_company_id
       );
+      const hasTikTokAuth = !!customer.tiktok_access_token;
 
       console.log("🔍 FINAL Dashboard auth status:", {
         userName,
@@ -846,6 +888,8 @@ module.exports = (dependencies) => {
             </button>
           </div>
         </div>
+
+
       `
         : `
         <div class="integration-card">
