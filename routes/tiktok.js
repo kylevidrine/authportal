@@ -79,11 +79,16 @@ router.get("/auth/tiktok", (req, res) => {
   const scopes = ["user.info.basic", "video.upload", "video.publish"];
 
   const authUrl =
-    "https://www.tiktok.com/v2/auth/authorize/" +
-    `?client_key=${process.env.TIKTOK_CLIENT_ID}` +
-    console.error("Disconnect error:", error);
-    res.status(500).json({ error: "Server error" });
-  }
+  "https://www.tiktok.com/v2/auth/authorize/" +
+  `?client_key=${process.env.TIKTOK_CLIENT_ID}` +
+  `&scope=${scopes.join(",")}` +
+  `&response_type=code` +
+  `&redirect_uri=${encodeURIComponent(process.env.TIKTOK_CALLBACK_URL)}` +
+  `&state=${req.sessionID}`;
+
+    console.log("🔗 Redirecting to TikTok auth:", authUrl);
+    res.redirect(authUrl);
+  
 });
 
 // =============================================================================
