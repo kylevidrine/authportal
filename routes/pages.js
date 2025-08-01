@@ -508,13 +508,11 @@ module.exports = (dependencies) => {
             </div>
             
 <!-- TikTok Integration Card -->
-              <div class="integration-card tiktok-card ${
-                hasTikTokAuth ? "connected" : ""
-              }" style="border-left: 4px solid #000000; background: ${
-        hasTikTokAuth
-          ? "linear-gradient(135deg, #f0fdf4 0%, #e6fffa 100%)"
-          : "linear-gradient(135deg, #fafbfc 0%, #f4f7fa 100%)"
-      }; border: 1px solid #c1d6e8;">
+              <div class="integration-card tiktok-card ${hasTikTokAuth ? "connected" : ""}" style="border-left: 4px solid #000000; background: ${
+                hasTikTokAuth
+                  ? "linear-gradient(135deg, #f0fdf4 0%, #e6fffa 100%)"
+                  : "linear-gradient(135deg, #fafbfc 0%, #f4f7fa 100%)"
+              }; border: 1px solid #c1d6e8;">
                 <h3 style="color: #1c2e4a; display: flex; align-items: center; gap: 8px;">
                   <span style="color: #000000; font-weight: 600;">🎬</span>
                   TikTok Integration 
