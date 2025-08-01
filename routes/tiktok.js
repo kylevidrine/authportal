@@ -145,7 +145,7 @@ router.get("/auth/tiktok/callback", async (req, res) => {
       console.log("💾 Access Token (first 20 chars):", tokenData.access_token.substring(0, 20));
 
       // Save TikTok tokens to database using injected function
-      await updateCustomerTikTokTokens(customerId, {
+      await dependencies.updateCustomerTikTokTokens(customerId, {
         tiktokAccessToken: tokenData.access_token,
         tiktokRefreshToken: tokenData.refresh_token,
         tiktokTokenExpiry: newExpiry,
