@@ -435,6 +435,7 @@ const sharedDependencies = {
   getCustomerById,
   storeCustomer,
   updateCustomerGoogleTokens,
+  updateCustomerTikTokTokens,
   updateCustomerQBTokens,
 
   // Validation functions

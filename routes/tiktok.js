@@ -89,7 +89,6 @@ router.get("/auth/tiktok", (req, res) => {
   console.log("🔗 Redirecting to TikTok auth:", authUrl);
   res.redirect(authUrl);
 });
-
 // TikTok OAuth callback route
 router.get("/auth/tiktok/callback", async (req, res) => {
   console.log("🎬 TikTok callback received");
@@ -131,18 +130,19 @@ router.get("/auth/tiktok/callback", async (req, res) => {
     console.log("🔑 Token exchange response:", tokenData);
 
     if (tokenData.access_token) {
-      // TODO: Store token in database with user session
-      // For now, store in session for demo
+      // Store tokens in session for demo (database storage requires customer login first)
       req.session.tiktokAccessToken = tokenData.access_token;
       req.session.tiktokRefreshToken = tokenData.refresh_token;
       req.session.tiktokTokenExpiry = Date.now() + tokenData.expires_in * 1000;
+      req.session.tiktokUserId = tokenData.open_id;
 
-      console.log("✅ TikTok tokens stored in session");
+      console.log("✅ TikTok tokens stored in session for demo");
 
       res.send(`
         <h1>🎬 TikTok OAuth Success!</h1>
         <p><strong>✅ User access token obtained and stored!</strong></p>
         <p><strong>Scope:</strong> ${tokenData.scope}</p>
+        <p><strong>User ID:</strong> ${tokenData.open_id || "N/A"}</p>
         <p>🎯 Ready for video uploads!</p>
         <a href="/tiktok/upload" style="background: #1976d2; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">Test Video Upload</a>
       `);
@@ -191,8 +191,23 @@ router.post(
         });
       }
 
-      // Get user access token from session instead of client token
-      const userToken = req.session?.tiktokAccessToken;
+      // Get user access token - try database first, then session
+      let userToken = req.session?.tiktokAccessToken;
+      let customerId = req.session?.customerId || req.user?.id;
+
+      if (customerId && !userToken) {
+        try {
+          // Try to get token from database
+          const customer = await getCustomerById(customerId);
+          if (customer?.tiktok_access_token) {
+            userToken = customer.tiktok_access_token;
+            console.log("📤 Using TikTok token from database");
+          }
+        } catch (error) {
+          console.error("❌ Error fetching customer data:", error);
+        }
+      }
+
       if (!userToken) {
         return res.status(401).json({
           error: "No TikTok authorization",
