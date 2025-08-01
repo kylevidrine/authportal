@@ -720,7 +720,7 @@ module.exports = (dependencies) => {
       const hasQBAuth = !!(
         customer?.qb_access_token && customer?.qb_company_id
       );
-      const hasTikTokAuth = !!customer.tiktok_access_token;
+      const hasTikTokAuth = !!customer?.tiktok_access_token;
 
       console.log("🔍 FINAL Dashboard auth status:", {
         userName,
