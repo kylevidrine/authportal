@@ -1,0 +1,59 @@
+version: "3.8"
+
+services:
+  postgres:
+    image: postgres:16
+    restart: always
+    container_name: robosouthla-postgres
+    environment:
+      - POSTGRES_USER=n8n_user
+      - POSTGRES_PASSWORD=supersecurepassword
+      - POSTGRES_DB=n8n
+      - TZ=America/Chicago
+      - PGTZ=America/Chicago
+    volumes:
+      - db_storage:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -h localhost -U n8n_user -d n8n"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  n8n:
+    image: docker.n8n.io/n8nio/n8n:latest
+    restart: always
+    container_name: robosouthla-n8n
+    environment:
+      - DB_TYPE=postgresdb
+      - DB_POSTGRESDB_HOST=postgres
+      - DB_POSTGRESDB_PORT=5432
+      - DB_POSTGRESDB_DATABASE=n8n
+      - DB_POSTGRESDB_USER=n8n_user
+      - DB_POSTGRESDB_PASSWORD=supersecurepassword
+      - N8N_VERSION=latest
+      - N8N_GIT_REPOSITORY=git@github.com:kylevidrine/n8n.git
+      - N8N_GIT_PUSH_BACKUP_ENABLED=true
+      - N8N_GIT_PUSH_BACKUP_BRANCH=main
+      - N8N_GIT_PUSH_BACKUP_SSH_KEY=/home/node/.ssh/n8n_git_key
+      - N8N_ENFORCE_SETTINGS_FILE_PERMISSIONS=true
+      - N8N_SECURE_COOKIE=false
+      - N8N_RUNNERS_ENABLED=true
+      - N8N_DEFAULT_BINARY_DATA_MODE=filesystem
+      - WEBHOOK_URL=https://n8n.robosouthla.com
+      - N8N_HOST=https://n8n.robosouthla.com
+      - N8N_PROTOCOL=https
+      - GENERIC_TIMEZONE=America/Chicago
+      - TZ=America/Chicago
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
+    ports:
+      - 5678:5678
+    links:
+      - postgres
+    volumes:
+      - /volume1/web/n8n:/home/node/.n8n
+      - /volume1/web/n8n/ssh/n8n_git_key:/home/node/.ssh/n8n_git_key:ro
+      - /volume1/truenas/kyle:/app/kyle:ro
+      - /volume1/web/n8n/robots.txt:/home/node/.n8n/static/robots.txt
+
+volumes:
+  db_storage:
