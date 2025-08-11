@@ -51,7 +51,6 @@ services:
       - postgres
     volumes:
       - /volume1/web/n8n:/home/node/.n8n
-      - /volume1/web/n8n/ssh/n8n_git_key:/home/node/.ssh/n8n_git_key:ro
       - /volume1/truenas/kyle:/app/kyle:ro
       - /volume1/web/n8n/robots.txt:/home/node/.n8n/static/robots.txt
 
