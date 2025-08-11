@@ -1,6 +1,9 @@
 #!/bin/bash
 cd /volume1/web/n8n || { echo "Folder not found"; exit 1; }
 
+# Stop Docker container first
+sudo docker-compose down
+
 # Add all changes
 git add .
 
@@ -11,5 +14,4 @@ git commit -m "Auto commit before docker build" || echo "No changes to commit"
 git push origin master || { echo "Git push failed"; exit 1; }
 
 # Restart Docker container with rebuild
-sudo docker-compose down
 sudo docker-compose up -d --build
