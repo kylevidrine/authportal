@@ -137,9 +137,11 @@ module.exports = (dependencies) => {
   return router;
 };
 
-module.exports.configureTikTokStrategy = function (
-  getCustomerById,
-  storeCustomer
-) {
-  console.log("TikTok strategy configured");
-};
+// Configure TikTok strategy with helper functions
+function configureTikTokStrategy(getCustomerById, storeCustomer) {
+  console.log('✅ TikTok strategy configured with helper functions');
+  // Add any TikTok strategy configuration logic here
+}
+
+// Export the function
+module.exports.configureTikTokStrategy = configureTikTokStrategy;
