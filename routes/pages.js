@@ -889,20 +889,7 @@ module.exports = (dependencies) => {
             </span>
           </h3>
           
-          ${hasTikTokAuth 
-            ? `
-            <p style="color: #d91a72; font-weight: 500;">✅ Connected to TikTok for Business</p>
-            <p style="color: #374151;"><strong style="color: #1c2e4a;">User ID:</strong> <code style="background: #f3f4f6; padding: 4px 8px; border-radius: 4px; color: #6b7280; border: 1px solid #d1d5db;">${customer.tiktok_user_id || 'N/A'}</code></p>
-            <p style="color: #374151;"><strong style="color: #1c2e4a;">Permissions:</strong> Video upload, user info</p>
-            <button onclick="disconnectTikTok()" class="btn" style="background: #dc2626; color: white; border: 1px solid #dc2626; box-shadow: 0 1px 2px rgba(220,38,38,0.15);">🔌 Disconnect TikTok</button>
-          ` 
-            : `
-            <p style="color: #374151;">Connect your TikTok account to enable automated video uploads and content management</p>
-            <p style="color: #374151;"><strong style="color: #1c2e4a;">Permissions:</strong> Video upload, basic profile info</p>
-            <a href="/auth/tiktok" class="btn" style="background: #ff0050; color: white; border: 1px solid #ff0050; box-shadow: 0 1px 2px rgba(255,0,80,0.15);">🎬 Connect TikTok</a>
-          `
-          }
-        </div>
+
       `
         : isFacebookUser
         ? `
@@ -968,21 +955,7 @@ module.exports = (dependencies) => {
             </span>
           </h3>
           
-          ${
-            hasTikTokAuth
-              ? `
-            <p>✅ Connected to TikTok for Business</p>
-            <p><strong>User ID:</strong> <code style="background: #f0f0f0; padding: 4px 8px; border-radius: 4px;">${customer.tiktok_user_id || 'N/A'}</code></p>
-            <p><strong>Permissions:</strong> Video upload, user info</p>
-            <button onclick="disconnectTikTok()" class="btn btn-danger">🔌 Disconnect TikTok</button>
-          `
-              : `
-            <p>Connect your TikTok account to enable automated video uploads and content management</p>
-            <p><strong>Permissions:</strong> Video upload, basic profile info</p>
-            <a href="/auth/tiktok" class="btn" style="background: #ff0050; color: white;">🎬 Connect TikTok</a>
-          `
-          }
-        </div>
+
 
 
       `

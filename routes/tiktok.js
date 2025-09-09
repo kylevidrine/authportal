@@ -94,8 +94,45 @@ router.get("/auth/tiktok/callback", async (req, res) => {
   res.redirect("/dashboard?tiktok=connected");
 });
 
+
+
+
 module.exports = (dependencies) => {
-  // Make database functions available to this router
-  router.locals = dependencies;
+  const { getCustomerById } = dependencies;
+
+  // Add the tokens endpoint here INSIDE the function but BEFORE return
+  router.get("/api/customer/:id/tiktok/tokens", async (req, res) => {
+    try {
+      const customer = await getCustomerById(req.params.id);
+
+      if (!customer) {
+        return res.status(404).json({
+          error: "customer_not_found",
+          message: "Customer not found.",
+        });
+      }
+
+      if (!customer.tiktok_access_token) {
+        return res.status(403).json({
+          error: "no_tiktok_token",
+          message: "No TikTok access token found.",
+        });
+      }
+
+      res.json({
+        integration: "tiktok",
+        customer_id: customer.id,
+        email: customer.email,
+        accessToken: customer.tiktok_access_token,
+        refreshToken: customer.tiktok_refresh_token,
+        userId: customer.tiktok_user_id,
+        connected: true,
+      });
+    } catch (error) {
+      console.error("TikTok API error:", error);
+      res.status(500).json({ error: "internal_error" });
+    }
+  });
+
   return router;
 };

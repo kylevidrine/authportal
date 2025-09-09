@@ -243,12 +243,7 @@ module.exports = (dependencies) => {
             <span>Continue with Facebook</span>
           </a>
           
-          ${(process.env.TIKTOK_CLIENT_ID && process.env.TIKTOK_CLIENT_SECRET && process.env.TIKTOK_CALLBACK_URL) ? `
-          <a href="/auth/tiktok" class="oauth-signin-btn tiktok-signin-btn">
-            <div class="oauth-icon tiktok-icon"></div>
-            <span>Continue with TikTok</span>
-          </a>
-          ` : ''}
+
           
           <!-- Divider -->
           <div class="divider">
